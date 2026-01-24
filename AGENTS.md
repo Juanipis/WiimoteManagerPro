@@ -39,3 +39,5 @@ When asked to implement a feature, first check the GitHub MCP for existing conte
 If the request involves a third-party library (e.g., Entity Framework, MediatR, AutoMapper), check the Documentation MCP for the latest breaking changes.
 
 Provide code in a single, clean block unless multiple files are strictly necessary.
+
+Finally, we are in a competition, follow the rules of loggin COPILOT_CLI_DOCS_INSTRUCTION.md
