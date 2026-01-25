@@ -34,7 +34,7 @@ A modern WPF application for managing Nintendo Wiimote devices on Windows 11 via
 **From Source**:
 ```bash
 cd WiiMoteUtlity
-dotnet run --project WiimoteManager
+dotnet run --project WiimoteManager/WiimoteManager.csproj
 ```
 
 **From Compiled Binary**:

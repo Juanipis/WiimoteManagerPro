@@ -58,6 +58,7 @@ public class WiimoteService : IDisposable
         public WiimoteDevice Model { get; set; } = null!;
         public Task? ReadTask { get; set; }
         public CancellationTokenSource CancellationToken { get; set; } = new();
+        public System.Threading.Timer? StatusTimer { get; set; }
     }
 
     /// <summary>
@@ -120,6 +121,19 @@ public class WiimoteService : IDisposable
 
                             // Configure wiimote to send accelerometer data
                             RequestAccelerometerData(deviceKey);
+
+                            // Request initial status (battery + Home button)
+                            RequestStatus(deviceKey);
+
+                            // Setup periodic status requests (every 200ms for Home button + battery)
+                            // This hybrid approach allows us to use Report 0x31 for fast Accel/Buttons
+                            // while getting the Home button (which is broken in 0x31) via polling.
+                            connection.StatusTimer = new System.Threading.Timer(
+                                _ => RequestStatus(deviceKey),
+                                null,
+                                TimeSpan.FromMilliseconds(200),
+                                TimeSpan.FromMilliseconds(200)
+                            );
 
                             // Turn on LED1 to show connection
                             SetLED(deviceKey, 0x10);
@@ -229,11 +243,35 @@ public class WiimoteService : IDisposable
         report[0] = 0x12; // Data reporting mode
         report[1] = 0x00; // No rumble
         report[2] = 0x31; // Report 0x31 - Buttons + Accelerometer
+        // NOTE: Home button will be garbage in this mode, but we poll Status (0x20) to get it.
 
         bool success = SendOutputReport(deviceKey, report);
         if (!success)
         {
             ProgressUpdate?.Invoke(this, $"[WARN] Request data failed");
+        }
+
+        return success;
+    }
+
+    /// <summary>
+    /// Requests Status Report (Report 0x20) which includes battery level and Home button
+    /// </summary>
+    public bool RequestStatus(string deviceKey)
+    {
+        byte[] report = new byte[22];
+        report[0] = 0x15; // Status Request
+        report[1] = 0x00; // No rumble
+
+        bool success = SendOutputReport(deviceKey, report);
+        if (success)
+        {
+            // Reduce log spam for high-frequency polling
+            // _logWriter?.WriteLine($"[{DateTime.Now:HH:mm:ss.fff}] STATUS REQUEST sent");
+        }
+        else
+        {
+            ProgressUpdate?.Invoke(this, $"[WARN] Request status failed");
         }
 
         return success;
@@ -303,6 +341,55 @@ public class WiimoteService : IDisposable
         }
         catch { }
         
+        // Parse Status Report (0x20) - includes battery, Home button, and extension status
+        if (reportId == 0x20 && length >= 7)
+        {
+            // Parse button data (bytes 1-2) - NO accelerometer LSBs here!
+            ushort byte1 = data[1];
+            ushort byte2 = data[2];
+            ushort buttons = (ushort)((byte1 << 8) | byte2);
+            
+            // Extract Home button (bit 7 of byte 2 -> 0x0080)
+            bool homePressed = (buttons & 0x0080) != 0;
+            
+            // Parse flags byte (byte 3)
+            byte flags = data[3];
+            bool batteryLow = (flags & 0x01) != 0;
+            bool extensionConnected = (flags & 0x02) != 0;
+            bool speakerEnabled = (flags & 0x04) != 0;
+            bool irEnabled = (flags & 0x08) != 0;
+            byte ledState = (byte)((flags >> 4) & 0x0F);
+            
+            // Parse battery level (byte 6)
+            byte rawBattery = data[6];
+            int batteryPercent = (rawBattery * 100) / 255;
+            
+            // Update model
+            connection.Model.BatteryLevel = batteryPercent;
+            connection.Model.LedState = ledState;
+            
+            // Log status information
+            _logWriter?.WriteLine($"[{DateTime.Now:HH:mm:ss.fff}] STATUS: Battery={batteryPercent}% (raw=0x{rawBattery:X2}), LEDs=0x{ledState:X}, Ext={extensionConnected}, Home={homePressed}");
+            _diagnosticLogger?.LogBatteryReading(rawBattery, batteryPercent);
+            
+            // MERGE Home button state with current buttons
+            var currentButtons = connection.Model.CurrentButtonState;
+            
+            if (homePressed)
+            {
+                // Set Home bit
+                connection.Model.CurrentButtonState = currentButtons | ButtonState.Home;
+                _logWriter?.WriteLine($"[{DateTime.Now:HH:mm:ss.fff}] HOME BUTTON DETECTED IN STATUS REPORT!");
+            }
+            else
+            {
+                // Clear Home bit (so it releases when button is released)
+                connection.Model.CurrentButtonState = currentButtons & ~ButtonState.Home;
+            }
+            
+            return; // Status report processed
+        }
+        
         // Parse button data - present in reports 0x30, 0x31, 0x32, 0x33, 0x34, 0x35, 0x36, 0x37
         if (length >= 4 && reportId >= 0x30 && reportId <= 0x3F)
         {
@@ -318,20 +405,11 @@ public class WiimoteService : IDisposable
             ushort byte1Raw = data[1];
             ushort byte2Raw = data[2];
             
-            // Debug log for Home button detection
-            if ((byte1Raw & 0x80) != 0)
-            {
-                _logWriter?.WriteLine($"[{DateTime.Now:HH:mm:ss.fff}] HOME DETECTED: byte1=0x{byte1Raw:X2}, bit7=1");
-                ProgressUpdate?.Invoke(this, $"[DEBUG] HOME button bit detected in byte 1: 0x{byte1Raw:X2}");
-            }
-            
-            // Check Home button BEFORE masking (bit 7 of byte 1)
-            bool homePressed = (byte1Raw & 0x80) != 0;
-            
             ushort byte1 = byte1Raw;
             ushort byte2 = byte2Raw;
             
             // For report 0x31, mask out accelerometer bits from BOTH button bytes
+            // Note: We are now using Report 0x30 so this won't run, but keeping for safety
             if (reportId == 0x31)
             {
                 byte1 = (ushort)(byte1 & 0x1F); // Clear bits 5-7 (keep only 0-4)
@@ -340,26 +418,20 @@ public class WiimoteService : IDisposable
             
             ushort buttons = (ushort)((byte1 << 8) | byte2);
             
-            // Add Home button back if it was pressed
-            if (homePressed)
-            {
-                buttons |= 0x8000;
-                _logWriter?.WriteLine($"[{DateTime.Now:HH:mm:ss.fff}] HOME BUTTON ADDED: buttons=0x{buttons:X4}");
-            }
             
-            // Only log when buttons change
-            if (buttons != (ushort)connection.Model.CurrentButtonState)
+                // Only log when buttons change
+            if (buttons != (ushort)(connection.Model.CurrentButtonState & ~ButtonState.Home))
             {
-                var previousState = connection.Model.CurrentButtonState;
-                connection.Model.CurrentButtonState = (ButtonState)buttons;
+                // Preserve Home button state (as it comes from Report 0x20)
+                var currentHome = connection.Model.CurrentButtonState & ButtonState.Home;
+                connection.Model.CurrentButtonState = (ButtonState)buttons | currentHome;
+                
                 ProgressUpdate?.Invoke(this, $"[INPUT] Buttons: 0x{buttons:X4}");
                 _logWriter?.WriteLine($"[{DateTime.Now:HH:mm:ss.fff}] BUTTONS: 0x{buttons:X4}");
                 
                 // If in diagnostic test mode, log the press
                 if (_diagnosticLogger != null && buttons != 0)
                 {
-                    // We don't know expected button here, will be set from UI test
-                    // Just log for now
                     _diagnosticLogger.LogButtonPress("Unknown", buttons, (ButtonState)buttons);
                 }
             }
@@ -401,21 +473,15 @@ public class WiimoteService : IDisposable
                 
                 _diagnosticLogger?.LogAccelerometer(accelX10bit, accelY10bit, accelZ10bit, accelXNorm, accelYNorm, accelZNorm);
 
-                // Battery level is in byte 6 (full byte, 0-255 scale)
-                if (length >= 7)
-                {
-                    byte rawBattery = data[6];
-                    int batteryPercent = (rawBattery * 100) / 255;
-                    connection.Model.BatteryLevel = batteryPercent;
-                    
-                    _diagnosticLogger?.LogBatteryReading(rawBattery, batteryPercent);
-                }
+                // NOTE: Report 0x31 does NOT include battery data!
+                // Battery is only available in Report 0x20 (Status)
+                // We request status periodically via timer
 
                 // Update connection indicators
                 connection.Model.SignalStrength = 100;
                 connection.Model.UpdateLastCommunication();
                 
-                _logWriter?.WriteLine($"[{DateTime.Now:HH:mm:ss.fff}] ACCEL: X={connection.Model.AccelX:F2} Y={connection.Model.AccelY:F2} Z={connection.Model.AccelZ:F2} Bat={connection.Model.BatteryLevel}%");
+                _logWriter?.WriteLine($"[{DateTime.Now:HH:mm:ss.fff}] ACCEL: X={connection.Model.AccelX:F2} Y={connection.Model.AccelY:F2} Z={connection.Model.AccelZ:F2}");
                 
                 // Show in UI occasionally
                 if (Random.Shared.Next(50) == 0)
@@ -439,6 +505,7 @@ public class WiimoteService : IDisposable
         foreach (var connection in _connections.Values)
         {
             connection.CancellationToken.Cancel();
+            connection.StatusTimer?.Dispose();
             connection.Stream?.Dispose();
         }
 

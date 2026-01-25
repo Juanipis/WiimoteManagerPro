@@ -32,6 +32,12 @@ public enum ButtonState : ushort
     /// <summary>Minus button (bit 4) - CORRECTED</summary>
     Minus = 0x0010,
     
+    /// <summary>Home button (bit 7) - CORRECTED</summary>
+    /// <remarks>
+    /// Confirmed via log: 0x0080 (Byte 2, Bit 7) in Report 0x30
+    /// </remarks>
+    Home = 0x0080,
+    
     // HIGH BYTE (Byte 1 - based on REAL hardware testing)
     /// <summary>D-Pad Left (bit 8) - CORRECTED</summary>
     DPadLeft = 0x0100,
@@ -46,15 +52,7 @@ public enum ButtonState : ushort
     DPadUp = 0x0800,
     
     /// <summary>Plus button (bit 12) - CORRECTED</summary>
-    Plus = 0x1000,
-    
-    /// <summary>Home button (bit 15 / bit 7 of high byte - BEFORE masking)</summary>
-    /// <remarks>
-    /// NOTE: Home button is at bit 7 of the high byte (0x8000), but this bit
-    /// is cleared by our 0x1F mask used for Report 0x31. To detect Home,
-    /// we need to check the RAW byte data before masking.
-    /// </remarks>
-    Home = 0x8000
+    Plus = 0x1000
 }
 
 /// <summary>

@@ -1,6 +1,6 @@
 {
   "version": 2,
-  "dgSpecHash": "Y3PVvREsiZE=",
+  "dgSpecHash": "kRjsaZqbv9o=",
   "success": true,
   "projectFilePath": "C:\\Users\\juani\\Projects\\contest\\UCHWiiRemoteMod\\WiiMoteUtlity\\WiimoteManager.Tests\\WiimoteManager.Tests.csproj",
   "expectedPackageFiles": [
@@ -97,18 +97,8 @@
     "C:\\Users\\juani\\.nuget\\packages\\xunit.core\\2.5.3\\xunit.core.2.5.3.nupkg.sha512",
     "C:\\Users\\juani\\.nuget\\packages\\xunit.extensibility.core\\2.5.3\\xunit.extensibility.core.2.5.3.nupkg.sha512",
     "C:\\Users\\juani\\.nuget\\packages\\xunit.extensibility.execution\\2.5.3\\xunit.extensibility.execution.2.5.3.nupkg.sha512",
-    "C:\\Users\\juani\\.nuget\\packages\\xunit.runner.visualstudio\\2.5.3\\xunit.runner.visualstudio.2.5.3.nupkg.sha512"
+    "C:\\Users\\juani\\.nuget\\packages\\xunit.runner.visualstudio\\2.5.3\\xunit.runner.visualstudio.2.5.3.nupkg.sha512",
+    "C:\\Users\\juani\\.nuget\\packages\\microsoft.windows.sdk.net.ref\\10.0.19041.56\\microsoft.windows.sdk.net.ref.10.0.19041.56.nupkg.sha512"
   ],
-  "logs": [
-    {
-      "code": "NU1603",
-      "level": "Warning",
-      "warningLevel": 1,
-      "message": "WiimoteManager depende de HidSharp (>= 2.5.80), pero no se encontró HidSharp 2.5.80. Se resolvió una mejor coincidencia aproximada de HidSharp 2.6.2.",
-      "libraryId": "HidSharp",
-      "targetGraphs": [
-        "net8.0-windows7.0"
-      ]
-    }
-  ]
+  "logs": []
 }

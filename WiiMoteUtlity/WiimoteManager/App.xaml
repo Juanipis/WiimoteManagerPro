@@ -31,6 +31,7 @@
         <local:ConnectionStatusColorConverter x:Key="ConnectionStatusColor"/>
         <local:RumbleColorConverter x:Key="RumbleColorConverter"/>
         <local:EmptyCollectionToVisibilityConverter x:Key="EmptyCollectionConverter"/>
+        <local:InverseBoolConverter x:Key="InverseBoolConverter"/>
 
         <!-- Window Style -->
         <Style TargetType="Window">
