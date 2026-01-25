@@ -29,10 +29,13 @@ public class WiimoteService : IDisposable
     private readonly Dictionary<string, WiimoteConnection> _connections = new();
     private bool _disposed = false;
     private StreamWriter? _logWriter;
+    private DiagnosticLogger? _diagnosticLogger;
 
     public event EventHandler<string>? ProgressUpdate;
     public event EventHandler<WiimoteDevice>? WiimoteConnected;
     public event EventHandler<WiimoteDevice>? WiimoteDisconnected;
+
+    public DiagnosticLogger? DiagnosticLogger => _diagnosticLogger;
 
     public WiimoteService()
     {
@@ -41,6 +44,9 @@ public class WiimoteService : IDisposable
             var logPath = Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.Desktop), "wiimote_debug.log");
             _logWriter = new StreamWriter(logPath, false) { AutoFlush = true };
             _logWriter.WriteLine($"=== WIIMOTE DEBUG LOG STARTED {DateTime.Now} ===");
+            
+            // Initialize diagnostic logger
+            _diagnosticLogger = new DiagnosticLogger();
         }
         catch { }
     }
@@ -289,10 +295,11 @@ public class WiimoteService : IDisposable
 
         byte reportId = data[0];
         
-        // Log to file only (not UI)
+        // Log to file and diagnostic logger
         try
         {
             _logWriter?.WriteLine($"[{DateTime.Now:HH:mm:ss.fff}] RAW: Len={length} ID=0x{reportId:X2} Bytes={BitConverter.ToString(data, 0, Math.Min(length, 10))}");
+            _diagnosticLogger?.LogRawPacket(reportId, data, length);
         }
         catch { }
         
@@ -308,11 +315,21 @@ public class WiimoteService : IDisposable
             // SPECIAL CASE: Home button is at bit 7 of byte 1 (0x80 in byte, 0x8000 in word)
             // This bit is OUTSIDE the 0x1F mask, so we must check it separately BEFORE masking
             
-            ushort byte1 = data[1];
-            ushort byte2 = data[2];
+            ushort byte1Raw = data[1];
+            ushort byte2Raw = data[2];
+            
+            // Debug log for Home button detection
+            if ((byte1Raw & 0x80) != 0)
+            {
+                _logWriter?.WriteLine($"[{DateTime.Now:HH:mm:ss.fff}] HOME DETECTED: byte1=0x{byte1Raw:X2}, bit7=1");
+                ProgressUpdate?.Invoke(this, $"[DEBUG] HOME button bit detected in byte 1: 0x{byte1Raw:X2}");
+            }
             
             // Check Home button BEFORE masking (bit 7 of byte 1)
-            bool homePressed = (byte1 & 0x80) != 0;
+            bool homePressed = (byte1Raw & 0x80) != 0;
+            
+            ushort byte1 = byte1Raw;
+            ushort byte2 = byte2Raw;
             
             // For report 0x31, mask out accelerometer bits from BOTH button bytes
             if (reportId == 0x31)
@@ -327,14 +344,24 @@ public class WiimoteService : IDisposable
             if (homePressed)
             {
                 buttons |= 0x8000;
+                _logWriter?.WriteLine($"[{DateTime.Now:HH:mm:ss.fff}] HOME BUTTON ADDED: buttons=0x{buttons:X4}");
             }
             
             // Only log when buttons change
             if (buttons != (ushort)connection.Model.CurrentButtonState)
             {
+                var previousState = connection.Model.CurrentButtonState;
                 connection.Model.CurrentButtonState = (ButtonState)buttons;
                 ProgressUpdate?.Invoke(this, $"[INPUT] Buttons: 0x{buttons:X4}");
                 _logWriter?.WriteLine($"[{DateTime.Now:HH:mm:ss.fff}] BUTTONS: 0x{buttons:X4}");
+                
+                // If in diagnostic test mode, log the press
+                if (_diagnosticLogger != null && buttons != 0)
+                {
+                    // We don't know expected button here, will be set from UI test
+                    // Just log for now
+                    _diagnosticLogger.LogButtonPress("Unknown", buttons, (ButtonState)buttons);
+                }
             }
         }
 
@@ -364,14 +391,24 @@ public class WiimoteService : IDisposable
                 int accelZ10bit = (accelZHigh << 2) | accelZLow;
 
                 // Convert to normalized values (-1.0 to 1.0, with neutral ~512 for 10-bit)
-                connection.Model.AccelX = (accelX10bit - 512) / 512.0f;
-                connection.Model.AccelY = (accelY10bit - 512) / 512.0f;
-                connection.Model.AccelZ = (accelZ10bit - 512) / 512.0f;
+                float accelXNorm = (accelX10bit - 512) / 512.0f;
+                float accelYNorm = (accelY10bit - 512) / 512.0f;
+                float accelZNorm = (accelZ10bit - 512) / 512.0f;
+                
+                connection.Model.AccelX = accelXNorm;
+                connection.Model.AccelY = accelYNorm;
+                connection.Model.AccelZ = accelZNorm;
+                
+                _diagnosticLogger?.LogAccelerometer(accelX10bit, accelY10bit, accelZ10bit, accelXNorm, accelYNorm, accelZNorm);
 
                 // Battery level is in byte 6 (full byte, 0-255 scale)
                 if (length >= 7)
                 {
-                    connection.Model.BatteryLevel = (data[6] * 100) / 255;
+                    byte rawBattery = data[6];
+                    int batteryPercent = (rawBattery * 100) / 255;
+                    connection.Model.BatteryLevel = batteryPercent;
+                    
+                    _diagnosticLogger?.LogBatteryReading(rawBattery, batteryPercent);
                 }
 
                 // Update connection indicators
@@ -409,6 +446,8 @@ public class WiimoteService : IDisposable
         
         _logWriter?.WriteLine($"=== LOG ENDED {DateTime.Now} ===");
         _logWriter?.Dispose();
+        
+        _diagnosticLogger?.Dispose();
         
         _disposed = true;
         GC.SuppressFinalize(this);

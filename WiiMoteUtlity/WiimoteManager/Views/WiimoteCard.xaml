@@ -189,30 +189,50 @@
             </Border>
 
             <!-- Action Buttons -->
-            <StackPanel Grid.Row="5" Orientation="Horizontal" Margin="0,0,0,0">
+            <Grid Grid.Row="5" Margin="0,0,0,0">
+                <Grid.ColumnDefinitions>
+                    <ColumnDefinition Width="*"/>
+                    <ColumnDefinition Width="*"/>
+                    <ColumnDefinition Width="*"/>
+                </Grid.ColumnDefinitions>
+
                 <!-- Vibrate Button -->
-                <Button Content="📳 Vibrate"
+                <Button Grid.Column="0"
+                        Content="📳 Vibrate"
                         Command="{Binding ToggleRumbleCommand}"
                         Background="{Binding VibrationIntensity, Converter={StaticResource RumbleColorConverter}}"
                         Foreground="White"
                         BorderThickness="0"
                         Padding="10,8"
-                        FontSize="12"
+                        FontSize="11"
                         Cursor="Hand"
-                        HorizontalAlignment="Stretch"
-                        Margin="0,0,10,0"/>
+                        Margin="0,0,5,0"/>
+
+                <!-- Test Button -->
+                <Button Grid.Column="1"
+                        Content="🔧 Test"
+                        Command="{Binding OpenButtonTestCommand}"
+                        Background="#0078D4"
+                        Foreground="White"
+                        BorderThickness="0"
+                        Padding="10,8"
+                        FontSize="11"
+                        Cursor="Hand"
+                        Margin="5,0,5,0"
+                        ToolTip="Open Button Test Diagnostic"/>
 
                 <!-- Disconnect Button -->
-                <Button Content="❌ Disconnect"
+                <Button Grid.Column="2"
+                        Content="❌ Disconnect"
                         Command="{Binding DisconnectCommand}"
                         Background="#AA3333"
                         Foreground="White"
                         BorderThickness="0"
                         Padding="10,8"
-                        FontSize="12"
+                        FontSize="11"
                         Cursor="Hand"
-                        HorizontalAlignment="Stretch"/>
-            </StackPanel>
+                        Margin="5,0,0,0"/>
+            </Grid>
         </Grid>
     </Border>
 </UserControl>

@@ -196,6 +196,17 @@ public partial class WiimoteViewModel : ObservableObject, IDisposable
     }
 
     /// <summary>
+    /// Opens the button test diagnostic window.
+    /// </summary>
+    [RelayCommand]
+    public void OpenButtonTest()
+    {
+        var testViewModel = new ButtonTestViewModel(Device, _wiimoteService);
+        var testWindow = new Views.ButtonTestWindow(testViewModel);
+        testWindow.Show();
+    }
+
+    /// <summary>
     /// Updates LEDs based on current toggle states.
     /// </summary>
     private async Task UpdateLEDs()

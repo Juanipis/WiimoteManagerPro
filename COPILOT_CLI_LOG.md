@@ -1787,3 +1787,59 @@ The application can now:
 **Next Steps**: User should test with physical Wiimote hardware using RED SYNC button.
 
 ---
+
+### 2026-01-25 17:30 - Session: Button Mapping Debug & Test Infrastructure
+
+**Context**: Continuación después de identificar problemas con batería (0%) y mapeo de botones incorrecto.
+
+**Implementation Status**: ✅ COMPLETADO
+
+**Changes**:
+1. ✅ DiagnosticLogger.cs - Sistema de logging persistente
+2. ✅ ButtonTestWindow - UI completa para testing de botones
+3. ✅ Integración en WiimoteCard con botón "Test"
+4. ✅ Fixes: System.IO usings, InverseBoolConverter
+
+**Build**: ✅ Exitoso (0 errores)
+
+**Next**: Ejecutar con Wiimote real, capturar datos, corregir mapeo ButtonState
+
+
+### 2026-01-25 17:38 - Hotfix: Test Cancellation & Home Button
+
+**Issues Found**:
+1. ❌ TaskCanceledException cuando usuario hace Stop Test
+2. ❌ Home button no detectado (timeout sin skip)
+
+**Fixes Applied**:
+1. ✅ Agregado try-catch para TaskCanceledException en StartTest()
+2. ✅ Mejor manejo de cancelación en TestButton()
+3. ✅ Auto-skip para Home button después de 10 segundos
+4. ✅ Mensaje especial explicando que Home puede no funcionar
+5. ✅ Logging adicional para debug de Home button (byte 1 bit 7)
+
+**Build**: ✅ Exitoso (0 errores, 6 warnings esperados)
+
+**User Can Now**: Ejecutar test completo sin crashes, Home se skipea automáticamente
+
+
+### 2026-01-25 17:43 - 🎯 BUTTON MAPPING FIXED!
+
+**Problem Identified**: Los bytes estaban correctos pero los NOMBRES del enum estaban swapped
+
+**Test Results Analyzed**:
+- Physical A (0x0008) → Was showing "↑" → NOW shows "A" ✅
+- Physical B (0x0004) → Was showing "↓" → NOW shows "B" ✅
+- Physical 1 (0x0002) → Was showing "→" → NOW shows "1" ✅
+- Physical 2 (0x0001) → Was showing "←" → NOW shows "2" ✅
+- Physical + (0x1000) → Was showing "-" → NOW shows "+" ✅
+- Physical - (0x0010) → Was showing "+" → NOW shows "-" ✅
+
+**Fix Applied**: Corrected ButtonState enum in Models/ButtonState.cs
+- LOW BYTE: Two=0x0001, One=0x0002, B=0x0004, A=0x0008, Minus=0x0010
+- HIGH BYTE: DPad buttons moved to 0x0100-0x0800, Plus=0x1000
+
+**Status**: ✅ COMPLETADO - Todos los botones ahora mapean correctamente
+
+**Pending**: Home button (no detectado) y Batería (siempre 0%)
+

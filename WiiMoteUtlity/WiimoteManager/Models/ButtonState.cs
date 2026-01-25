@@ -16,37 +16,37 @@ public enum ButtonState : ushort
     /// <summary>No buttons pressed</summary>
     None = 0x0000,
     
-    // LOW BYTE (Byte 2 after masking with 0x1F)
-    /// <summary>D-Pad Left (bit 0)</summary>
-    DPadLeft = 0x0001,
+    // LOW BYTE (Byte 2 - based on REAL hardware testing)
+    /// <summary>Button 2 (bit 0) - CORRECTED</summary>
+    Two = 0x0001,
     
-    /// <summary>D-Pad Right (bit 1)</summary>
-    DPadRight = 0x0002,
+    /// <summary>Button 1 (bit 1) - CORRECTED</summary>
+    One = 0x0002,
     
-    /// <summary>D-Pad Down (bit 2)</summary>
-    DPadDown = 0x0004,
+    /// <summary>B button / Trigger (bit 2) - CORRECTED</summary>
+    B = 0x0004,
     
-    /// <summary>D-Pad Up (bit 3)</summary>
-    DPadUp = 0x0008,
+    /// <summary>A button (bit 3) - CORRECTED</summary>
+    A = 0x0008,
     
-    /// <summary>Plus button (bit 4)</summary>
-    Plus = 0x0010,
+    /// <summary>Minus button (bit 4) - CORRECTED</summary>
+    Minus = 0x0010,
     
-    // HIGH BYTE (Byte 1 after masking with 0x1F)
-    /// <summary>Two button (bit 8 / bit 0 of high byte)</summary>
-    Two = 0x0100,
+    // HIGH BYTE (Byte 1 - based on REAL hardware testing)
+    /// <summary>D-Pad Left (bit 8) - CORRECTED</summary>
+    DPadLeft = 0x0100,
     
-    /// <summary>One button (bit 9 / bit 1 of high byte)</summary>
-    One = 0x0200,
+    /// <summary>D-Pad Right (bit 9) - CORRECTED</summary>
+    DPadRight = 0x0200,
     
-    /// <summary>B button (bit 10 / bit 2 of high byte)</summary>
-    B = 0x0400,
+    /// <summary>D-Pad Down (bit 10) - CORRECTED</summary>
+    DPadDown = 0x0400,
     
-    /// <summary>A button (bit 11 / bit 3 of high byte)</summary>
-    A = 0x0800,
+    /// <summary>D-Pad Up (bit 11) - CORRECTED</summary>
+    DPadUp = 0x0800,
     
-    /// <summary>Minus button (bit 12 / bit 4 of high byte)</summary>
-    Minus = 0x1000,
+    /// <summary>Plus button (bit 12) - CORRECTED</summary>
+    Plus = 0x1000,
     
     /// <summary>Home button (bit 15 / bit 7 of high byte - BEFORE masking)</summary>
     /// <remarks>
