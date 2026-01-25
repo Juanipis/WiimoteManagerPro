@@ -1,0 +1,212 @@
+<UserControl x:Class="WiimoteManager.WiimoteCard"
+             xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+             xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+             xmlns:local="clr-namespace:WiimoteManager"
+             Background="Transparent">
+    <Border Background="#2D2D2D"
+            BorderBrush="#3D3D3D"
+            BorderThickness="1"
+            CornerRadius="8"
+            Padding="20"
+            Margin="10"
+            MaxWidth="350">
+        <Grid>
+            <Grid.RowDefinitions>
+                <RowDefinition Height="Auto"/>
+                <RowDefinition Height="Auto"/>
+                <RowDefinition Height="Auto"/>
+                <RowDefinition Height="Auto"/>
+                <RowDefinition Height="Auto"/>
+                <RowDefinition Height="Auto"/>
+                <RowDefinition Height="Auto"/>
+            </Grid.RowDefinitions>
+
+            <!-- Device Name & Status -->
+            <Grid Grid.Row="0" Margin="0,0,0,15">
+                <Grid.ColumnDefinitions>
+                    <ColumnDefinition Width="*"/>
+                    <ColumnDefinition Width="Auto"/>
+                </Grid.ColumnDefinitions>
+
+                <StackPanel VerticalAlignment="Center">
+                    <TextBlock FontSize="16" FontWeight="Bold" Foreground="#FFFFFF">
+                        <Run Text="🎮"/>
+                        <Run Text="{Binding Device.DisplayName, Mode=OneWay}"/>
+                    </TextBlock>
+                    <TextBlock FontSize="11" Foreground="#AAAAAA" Margin="0,3,0,0">
+                        <Run Text="{Binding Device.BluetoothAddress, Mode=OneWay}"/>
+                    </TextBlock>
+                </StackPanel>
+
+                <!-- Status Badge -->
+                <Border Grid.Column="1"
+                       Background="{Binding Device.IsConnected, Converter={StaticResource ConnectionStatusColor}}"
+                       CornerRadius="12"
+                       Padding="12,6"
+                       VerticalAlignment="Top">
+                    <TextBlock Text="{Binding StatusText}" FontSize="11" FontWeight="Bold" Foreground="White"/>
+                </Border>
+            </Grid>
+
+            <!-- Battery & Signal -->
+            <Grid Grid.Row="1" Margin="0,0,0,15">
+                <Grid.ColumnDefinitions>
+                    <ColumnDefinition Width="*"/>
+                    <ColumnDefinition Width="*"/>
+                </Grid.ColumnDefinitions>
+
+                <!-- Battery -->
+                <StackPanel Margin="0,0,10,0">
+                    <TextBlock FontSize="10" Foreground="#999999" Margin="0,0,0,5">🔋 Battery</TextBlock>
+                    <ProgressBar Height="8"
+                                 Value="{Binding BatteryPercent}"
+                                 Maximum="100"
+                                 Foreground="#00CC44"
+                                 Background="#333333"
+                                 BorderThickness="0"/>
+                    <TextBlock FontSize="10" Foreground="#AAAAAA" Margin="0,3,0,0">
+                        <Run Text="{Binding BatteryPercent}"/>
+                        <Run Text="%"/>
+                    </TextBlock>
+                </StackPanel>
+
+                <!-- Signal Strength -->
+                <StackPanel Grid.Column="1" Margin="10,0,0,0">
+                    <TextBlock FontSize="10" Foreground="#999999" Margin="0,0,0,5">📡 Signal</TextBlock>
+                    <ProgressBar Height="8"
+                                 Value="{Binding Device.SignalStrength}"
+                                 Maximum="100"
+                                 Foreground="#0099FF"
+                                 Background="#333333"
+                                 BorderThickness="0"/>
+                    <TextBlock FontSize="10" Foreground="#AAAAAA" Margin="0,3,0,0">
+                        <Run Text="{Binding Device.SignalStrength}"/>
+                        <Run Text="%"/>
+                    </TextBlock>
+                </StackPanel>
+            </Grid>
+
+            <!-- Buttons Press Display -->
+            <Border Grid.Row="2" Background="#1E1E1E" Padding="12,10" Margin="0,0,0,15">
+                <StackPanel>
+                    <TextBlock FontSize="10" Foreground="#999999">🎮 Buttons</TextBlock>
+                    <TextBlock FontSize="12" Foreground="#FFCC00" Margin="0,5,0,0" TextWrapping="Wrap">
+                        <Run Text="{Binding PressedButtons}"/>
+                    </TextBlock>
+                </StackPanel>
+            </Border>
+
+            <!-- Accelerometer Tilt -->
+            <Border Grid.Row="3" Background="#1E1E1E" Padding="12,10" Margin="0,0,0,15">
+                <Grid>
+                    <Grid.ColumnDefinitions>
+                        <ColumnDefinition Width="*"/>
+                        <ColumnDefinition Width="*"/>
+                    </Grid.ColumnDefinitions>
+
+                    <StackPanel>
+                        <TextBlock FontSize="10" Foreground="#999999">↔️ Tilt X</TextBlock>
+                        <TextBlock FontSize="13" Foreground="#0099FF" Margin="0,3,0,0">
+                            <Run Text="{Binding TiltX, StringFormat=F1}"/>
+                            <Run Text="°"/>
+                        </TextBlock>
+                    </StackPanel>
+
+                    <StackPanel Grid.Column="1" Margin="10,0,0,0">
+                        <TextBlock FontSize="10" Foreground="#999999">↕️ Tilt Y</TextBlock>
+                        <TextBlock FontSize="13" Foreground="#0099FF" Margin="0,3,0,0">
+                            <Run Text="{Binding TiltY, StringFormat=F1}"/>
+                            <Run Text="°"/>
+                        </TextBlock>
+                    </StackPanel>
+                </Grid>
+            </Border>
+
+            <!-- LED Controls -->
+            <Border Grid.Row="4" Background="#1E1E1E" Padding="12,10" Margin="0,0,0,15">
+                <Grid>
+                    <Grid.ColumnDefinitions>
+                        <ColumnDefinition Width="*"/>
+                        <ColumnDefinition Width="*"/>
+                        <ColumnDefinition Width="*"/>
+                        <ColumnDefinition Width="*"/>
+                    </Grid.ColumnDefinitions>
+
+                    <!-- LED1 -->
+                    <Button Grid.Column="0"
+                            Command="{Binding ToggleLED1Command}"
+                            Background="{Binding IsLed1On, Converter={StaticResource LEDColorConverter}}"
+                            Foreground="White"
+                            BorderThickness="0"
+                            Padding="10"
+                            Margin="0,0,5,0"
+                            ToolTip="LED 1">
+                        <TextBlock Text="1️⃣" TextAlignment="Center" FontSize="16"/>
+                    </Button>
+
+                    <!-- LED2 -->
+                    <Button Grid.Column="1"
+                            Command="{Binding ToggleLED2Command}"
+                            Background="{Binding IsLed2On, Converter={StaticResource LEDColorConverter}}"
+                            Foreground="White"
+                            BorderThickness="0"
+                            Padding="10"
+                            Margin="5,0,5,0"
+                            ToolTip="LED 2">
+                        <TextBlock Text="2️⃣" TextAlignment="Center" FontSize="16"/>
+                    </Button>
+
+                    <!-- LED3 -->
+                    <Button Grid.Column="2"
+                            Command="{Binding ToggleLED3Command}"
+                            Background="{Binding IsLed3On, Converter={StaticResource LEDColorConverter}}"
+                            Foreground="White"
+                            BorderThickness="0"
+                            Padding="10"
+                            Margin="5,0,5,0"
+                            ToolTip="LED 3">
+                        <TextBlock Text="3️⃣" TextAlignment="Center" FontSize="16"/>
+                    </Button>
+
+                    <!-- LED4 -->
+                    <Button Grid.Column="3"
+                            Command="{Binding ToggleLED4Command}"
+                            Background="{Binding IsLed4On, Converter={StaticResource LEDColorConverter}}"
+                            Foreground="White"
+                            BorderThickness="0"
+                            Padding="10"
+                            Margin="5,0,0,0"
+                            ToolTip="LED 4">
+                        <TextBlock Text="4️⃣" TextAlignment="Center" FontSize="16"/>
+                    </Button>
+                </Grid>
+            </Border>
+
+            <!-- Action Buttons -->
+            <StackPanel Grid.Row="5" Orientation="Horizontal" Margin="0,0,0,0">
+                <!-- Vibrate Button -->
+                <Button Content="📳 Vibrate"
+                        Command="{Binding ToggleRumbleCommand}"
+                        Background="{Binding VibrationIntensity, Converter={StaticResource RumbleColorConverter}}"
+                        Foreground="White"
+                        BorderThickness="0"
+                        Padding="10,8"
+                        FontSize="12"
+                        Cursor="Hand"
+                        HorizontalAlignment="Stretch"
+                        Margin="0,0,10,0"/>
+
+                <!-- Disconnect Button -->
+                <Button Content="❌ Disconnect"
+                        Command="{Binding DisconnectCommand}"
+                        Background="#AA3333"
+                        Foreground="White"
+                        BorderThickness="0"
+                        Padding="10,8"
+                        FontSize="12"
+                        Cursor="Hand"
+                        HorizontalAlignment="Stretch"/>
+            </StackPanel>
+        </Grid>
+    </Border>
+</UserControl>

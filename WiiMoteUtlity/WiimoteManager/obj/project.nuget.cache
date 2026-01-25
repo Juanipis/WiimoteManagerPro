@@ -1,0 +1,22 @@
+{
+  "version": 2,
+  "dgSpecHash": "LS1NMTq08IQ=",
+  "success": true,
+  "projectFilePath": "C:\\Users\\juani\\Projects\\contest\\UCHWiiRemoteMod\\WiiMoteUtlity\\WiimoteManager\\WiimoteManager.csproj",
+  "expectedPackageFiles": [
+    "C:\\Users\\juani\\.nuget\\packages\\communitytoolkit.mvvm\\8.2.2\\communitytoolkit.mvvm.8.2.2.nupkg.sha512",
+    "C:\\Users\\juani\\.nuget\\packages\\hidsharp\\2.6.2\\hidsharp.2.6.2.nupkg.sha512"
+  ],
+  "logs": [
+    {
+      "code": "NU1603",
+      "level": "Warning",
+      "warningLevel": 1,
+      "message": "WiimoteManager depende de HidSharp (>= 2.5.80), pero no se encontró HidSharp 2.5.80. Se resolvió una mejor coincidencia aproximada de HidSharp 2.6.2.",
+      "libraryId": "HidSharp",
+      "targetGraphs": [
+        "net8.0-windows7.0"
+      ]
+    }
+  ]
+}
