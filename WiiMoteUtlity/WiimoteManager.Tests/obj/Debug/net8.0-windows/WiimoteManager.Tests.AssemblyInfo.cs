@@ -13,7 +13,7 @@ using System.Reflection;
 [assembly: System.Reflection.AssemblyCompanyAttribute("WiimoteManager.Tests")]
 [assembly: System.Reflection.AssemblyConfigurationAttribute("Debug")]
 [assembly: System.Reflection.AssemblyFileVersionAttribute("1.0.0.0")]
-[assembly: System.Reflection.AssemblyInformationalVersionAttribute("1.0.0+e5b42efcc29128b103296b28b24c7ca42703195f")]
+[assembly: System.Reflection.AssemblyInformationalVersionAttribute("1.0.0+3b6ecbf1fe03909a73552bed0a6f580f83602d8f")]
 [assembly: System.Reflection.AssemblyProductAttribute("WiimoteManager.Tests")]
 [assembly: System.Reflection.AssemblyTitleAttribute("WiimoteManager.Tests")]
 [assembly: System.Reflection.AssemblyVersionAttribute("1.0.0.0")]

@@ -102,21 +102,27 @@
                     <Grid.ColumnDefinitions>
                         <ColumnDefinition Width="*"/>
                         <ColumnDefinition Width="*"/>
+                        <ColumnDefinition Width="*"/>
                     </Grid.ColumnDefinitions>
 
                     <StackPanel>
-                        <TextBlock FontSize="10" Foreground="#999999">↔️ Tilt X</TextBlock>
+                        <TextBlock FontSize="10" Foreground="#999999">↔️ Accel X</TextBlock>
                         <TextBlock FontSize="13" Foreground="#0099FF" Margin="0,3,0,0">
-                            <Run Text="{Binding TiltX, StringFormat=F1}"/>
-                            <Run Text="°"/>
+                            <Run Text="{Binding Device.AccelX, Mode=OneWay, StringFormat=F2}"/>
                         </TextBlock>
                     </StackPanel>
 
                     <StackPanel Grid.Column="1" Margin="10,0,0,0">
-                        <TextBlock FontSize="10" Foreground="#999999">↕️ Tilt Y</TextBlock>
+                        <TextBlock FontSize="10" Foreground="#999999">↕️ Accel Y</TextBlock>
                         <TextBlock FontSize="13" Foreground="#0099FF" Margin="0,3,0,0">
-                            <Run Text="{Binding TiltY, StringFormat=F1}"/>
-                            <Run Text="°"/>
+                            <Run Text="{Binding Device.AccelY, Mode=OneWay, StringFormat=F2}"/>
+                        </TextBlock>
+                    </StackPanel>
+                    
+                    <StackPanel Grid.Column="2" Margin="10,0,0,0">
+                        <TextBlock FontSize="10" Foreground="#999999">⬆️ Accel Z</TextBlock>
+                        <TextBlock FontSize="13" Foreground="#0099FF" Margin="0,3,0,0">
+                            <Run Text="{Binding Device.AccelZ, Mode=OneWay, StringFormat=F2}"/>
                         </TextBlock>
                     </StackPanel>
                 </Grid>

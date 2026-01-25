@@ -199,7 +199,7 @@ public partial class MainViewModel : ObservableObject
 
             if (existingVm == null)
             {
-                var vm = new WiimoteViewModel(device, _hidService);
+                var vm = new WiimoteViewModel(device, _wiimoteService);
                 ConnectedWiimotes.Add(vm);
                 StatusMessage = $"Connected: {device.DisplayName}";
                 UpdateConnectionStatus();

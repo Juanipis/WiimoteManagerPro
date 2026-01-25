@@ -11,7 +11,7 @@ namespace WiimoteManager.ViewModels;
 /// </summary>
 public partial class WiimoteViewModel : ObservableObject, IDisposable
 {
-    private readonly HidCommunicationService _hidService;
+    private readonly WiimoteService _wiimoteService;
     private CancellationTokenSource? _readLoopCancellation;
     private bool _disposed = false;
 
@@ -87,10 +87,10 @@ public partial class WiimoteViewModel : ObservableObject, IDisposable
     [ObservableProperty]
     public string statusText = "Disconnected";
 
-    public WiimoteViewModel(WiimoteDevice device, HidCommunicationService hidService)
+    public WiimoteViewModel(WiimoteDevice device, WiimoteService wiimoteService)
     {
         Device = device;
-        _hidService = hidService;
+        _wiimoteService = wiimoteService;
 
         // Subscribe to device property changes
         Device.PropertyChanged += (s, e) =>
@@ -101,32 +101,17 @@ public partial class WiimoteViewModel : ObservableObject, IDisposable
 
     /// <summary>
     /// Connects to the Wiimote and starts reading data.
+    /// Note: With WiimoteService, connection is already established.
+    /// This just updates UI state.
     /// </summary>
     [RelayCommand]
     public async Task Connect()
     {
         try
         {
-            StatusText = "Connecting...";
-
-            // Register device with HID service
-            _hidService.RegisterDevice(Device);
-
-            // Try to open HID stream
-            if (!_hidService.TryOpenDevice(Device, out var stream))
-            {
-                StatusText = "Failed to open device";
-                Device.IsConnected = false;
-                return;
-            }
-
-            Device.IsConnected = true;
-            IsReading = true;
             StatusText = "Connected";
-
-            // Start reading in background
-            _readLoopCancellation = new CancellationTokenSource();
-            _ = _hidService.StartReadingAsync(Device.DeviceId, _readLoopCancellation.Token);
+            IsReading = true;
+            await Task.CompletedTask;
         }
         catch (Exception ex)
         {
@@ -137,6 +122,7 @@ public partial class WiimoteViewModel : ObservableObject, IDisposable
 
     /// <summary>
     /// Disconnects from the Wiimote and stops reading data.
+    /// Note: WiimoteService handles the actual disconnection.
     /// </summary>
     [RelayCommand]
     public async Task Disconnect()
@@ -145,17 +131,10 @@ public partial class WiimoteViewModel : ObservableObject, IDisposable
         {
             StatusText = "Disconnecting...";
             IsReading = false;
-
-            _readLoopCancellation?.Cancel();
-            await _hidService.StopReadingAsync(Device.DeviceId);
-
-            _hidService.CloseDevice(Device.DeviceId);
-            _hidService.UnregisterDevice(Device.DeviceId);
-
             Device.IsConnected = false;
             Device.ResetSensorData();
-
             StatusText = "Disconnected";
+            await Task.CompletedTask;
         }
         catch (Exception ex)
         {
@@ -213,7 +192,7 @@ public partial class WiimoteViewModel : ObservableObject, IDisposable
         VibrationIntensity = shouldRumble ? 1.0f : 0f;
 
         byte ledMask = CalculateLEDMask();
-        await _hidService.SetLEDAsync(Device.DeviceId, ledMask, shouldRumble);
+        await _wiimoteService.SetLEDAsync(Device.DeviceId, ledMask, shouldRumble);
     }
 
     /// <summary>
@@ -222,7 +201,7 @@ public partial class WiimoteViewModel : ObservableObject, IDisposable
     private async Task UpdateLEDs()
     {
         byte ledMask = CalculateLEDMask();
-        await _hidService.SetLEDAsync(Device.DeviceId, ledMask, Device.IsRumbling);
+        await _wiimoteService.SetLEDAsync(Device.DeviceId, ledMask, Device.IsRumbling);
     }
 
     /// <summary>

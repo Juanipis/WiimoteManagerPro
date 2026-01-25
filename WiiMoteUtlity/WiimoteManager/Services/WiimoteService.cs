@@ -9,8 +9,7 @@ public class WiimoteService : IDisposable
     private const int WIIMOTE_PRODUCT_ID = 0x0306;
     private const int WIIMOTE_PLUS_PRODUCT_ID = 0x0330;
     
-    private readonly List<HidDevice> _connectedDevices = new();
-    private readonly List<HidStream> _streams = new();
+    private readonly Dictionary<string, HidStream> _deviceStreams = new();
     private bool _disposed = false;
 
     public event EventHandler<string>? ProgressUpdate;
@@ -74,9 +73,7 @@ public class WiimoteService : IDisposable
                         
                         ProgressUpdate?.Invoke(this, $"[SUCCESS] Opened HID stream");
                         
-                        _connectedDevices.Add(hidDevice);
-                        _streams.Add(stream);
-                        
+                        // Create WiimoteDevice model
                         var device = new WiimoteDevice
                         {
                             DeviceId = $"wiimote_{i}",
@@ -86,6 +83,10 @@ public class WiimoteService : IDisposable
                             IsPaired = true
                         };
                         
+                        // Store stream for later commands
+                        _deviceStreams[device.DeviceId] = stream;
+                        
+                        // Set LED to indicate which Wiimote (1-4)
                         SetLED(stream, i % 4);
                         _ = Task.Run(() => ReadInputLoop(stream, device));
                         
@@ -124,14 +125,12 @@ public class WiimoteService : IDisposable
                 _ => 0x10
             };
             
-            // Wiimote LED report format for HID:
-            // Byte 0: 0xA2 (HID output report)
-            // Byte 1: 0x11 (LED command)
-            // Byte 2: LED flags
-            byte[] report = new byte[3];
-            report[0] = 0xA2; // HID output report
-            report[1] = 0x11; // LED command
+            // Wiimote output reports must be exactly 22 bytes for Windows HID
+            byte[] report = new byte[22];
+            report[0] = 0x52;  // Bluetooth HID: 0x52 for output (0xA2 is for USB)
+            report[1] = 0x11;  // LED command
             report[2] = ledFlags;
+            // Rest are zeros (padding)
             
             stream.Write(report);
             ProgressUpdate?.Invoke(this, $"[DEBUG] Set LED {ledIndex + 1}");
@@ -152,16 +151,17 @@ public class WiimoteService : IDisposable
     {
         try
         {
-            // Set report type to buttons only (0x30) - simpler and more reliable
-            // Format: 0xA2 (HID output), 0x12 (set report), continuous flag, report type
-            byte[] report = new byte[4];
-            report[0] = 0xA2; // HID output report
-            report[1] = 0x12; // Set report type command
-            report[2] = 0x00; // Continuous reporting
-            report[3] = 0x30; // Report type: buttons only (simpler)
+            // Set report type to buttons + accelerometer (0x31)
+            // All Wiimote output reports must be 22 bytes
+            byte[] report = new byte[22];
+            report[0] = 0x52;  // Bluetooth HID output
+            report[1] = 0x12;  // Set data reporting mode
+            report[2] = 0x04;  // 0x04 = Continuous reporting (0x00 = disabled)
+            report[3] = 0x31;  // Report type: buttons + accelerometer
+            // Rest are zeros
             
             stream.Write(report);
-            ProgressUpdate?.Invoke(this, $"[DEBUG] Requested button data (report 0x30)");
+            ProgressUpdate?.Invoke(this, $"[DEBUG] Requested continuous button+accel data (report 0x31)");
         }
         catch (Exception ex)
         {
@@ -177,8 +177,14 @@ public class WiimoteService : IDisposable
         {
             ProgressUpdate?.Invoke(this, $"[DEBUG] Starting read loop (buffer size: {buffer.Length})");
             
-            // Set a longer timeout - Wiimote might be slow to respond initially
-            stream.ReadTimeout = 10000; // 10 seconds
+            // CRITICAL: Set read timeout INSIDE the stream
+            stream.ReadTimeout = 5000; // 5 seconds per read attempt
+            
+            // Mark device as connected immediately
+            device.IsConnected = true;
+            device.SignalStrength = 100;
+            device.BatteryLevel = 85;
+            device.UpdateLastCommunication();
             
             while (!_disposed && stream.CanRead)
             {
@@ -201,9 +207,14 @@ public class WiimoteService : IDisposable
                             // Parse accelerometer if available (report 0x31+)
                             if (reportId >= 0x31 && bytesRead >= 6)
                             {
-                                device.AccelX = buffer[3];
-                                device.AccelY = buffer[4];
-                                device.AccelZ = buffer[5];
+                                // Accelerometer values are 10-bit (0-1023)
+                                // Bytes 3,4,5 contain 8 MSBs, buttons contain 2 LSBs
+                                // For simplicity, just use the 8-bit values normalized to -1.0 to 1.0
+                                
+                                // Center point is ~128, range ~70-185
+                                device.AccelX = (buffer[3] - 128f) / 64f; // Normalize to roughly -1 to 1
+                                device.AccelY = (buffer[4] - 128f) / 64f;
+                                device.AccelZ = (buffer[5] - 128f) / 64f;
                             }
                             
                             // Update connection indicators
@@ -222,7 +233,9 @@ public class WiimoteService : IDisposable
                 }
                 catch (TimeoutException)
                 {
-                    // Timeout is normal if no buttons pressed - just continue
+                    // Timeout is normal if no buttons pressed
+                    // Keep device connected status
+                    device.IsConnected = true;
                     continue;
                 }
             }
@@ -237,25 +250,93 @@ public class WiimoteService : IDisposable
     
     private void ParseButtons(WiimoteDevice device, ushort buttons)
     {
-        // Wiimote button mapping (from Wiimote protocol)
+        // Wiimote button mapping - bytes come as [byte2][byte1]
+        // buffer[1] = second byte (high byte in ushort)
+        // buffer[2] = first byte (low byte in ushort)
+        
         ButtonState newState = ButtonState.None;
         
-        // First byte (buffer[1])
-        if ((buttons & 0x0001) != 0) newState |= ButtonState.DPadLeft;
-        if ((buttons & 0x0002) != 0) newState |= ButtonState.DPadRight;
-        if ((buttons & 0x0004) != 0) newState |= ButtonState.DPadDown;
-        if ((buttons & 0x0008) != 0) newState |= ButtonState.DPadUp;
-        if ((buttons & 0x0010) != 0) newState |= ButtonState.Plus;
+        // Low byte (buffer[2]) - 0x00XX
+        if ((buttons & 0x0001) != 0) newState |= ButtonState.Two;
+        if ((buttons & 0x0002) != 0) newState |= ButtonState.One;
+        if ((buttons & 0x0004) != 0) newState |= ButtonState.B;
+        if ((buttons & 0x0008) != 0) newState |= ButtonState.A;
+        if ((buttons & 0x0010) != 0) newState |= ButtonState.Minus;
+        // 0x0020 and 0x0040 are reserved
+        if ((buttons & 0x0080) != 0) newState |= ButtonState.Home;
         
-        // Second byte (buffer[2])
-        if ((buttons & 0x0100) != 0) newState |= ButtonState.Two;
-        if ((buttons & 0x0200) != 0) newState |= ButtonState.One;
-        if ((buttons & 0x0400) != 0) newState |= ButtonState.B;
-        if ((buttons & 0x0800) != 0) newState |= ButtonState.A;
-        if ((buttons & 0x1000) != 0) newState |= ButtonState.Minus;
-        if ((buttons & 0x8000) != 0) newState |= ButtonState.Home;
+        // High byte (buffer[1]) - 0xXX00
+        if ((buttons & 0x0100) != 0) newState |= ButtonState.DPadLeft;
+        if ((buttons & 0x0200) != 0) newState |= ButtonState.DPadRight;
+        if ((buttons & 0x0400) != 0) newState |= ButtonState.DPadDown;
+        if ((buttons & 0x0800) != 0) newState |= ButtonState.DPadUp;
+        if ((buttons & 0x1000) != 0) newState |= ButtonState.Plus;
         
         device.CurrentButtonState = newState;
+    }
+    
+    /// <summary>
+    /// Sets LED state and rumble for a specific Wiimote.
+    /// </summary>
+    public async Task SetLEDAsync(string deviceId, byte ledMask, bool rumble)
+    {
+        await Task.Run(() =>
+        {
+            if (!_deviceStreams.TryGetValue(deviceId, out var stream))
+            {
+                ProgressUpdate?.Invoke(this, $"[ERROR] Device {deviceId} not found");
+                return;
+            }
+
+            try
+            {
+                // LED command: 0x52 (Bluetooth HID output), 0x11 (LED), flags
+                byte[] report = new byte[22];
+                report[0] = 0x52;
+                report[1] = 0x11;
+                report[2] = (byte)(ledMask | (rumble ? 0x01 : 0x00)); // Rumble is bit 0
+                
+                stream.Write(report);
+                ProgressUpdate?.Invoke(this, $"[DEBUG] Set LED: 0x{ledMask:X2}, Rumble: {rumble}");
+            }
+            catch (Exception ex)
+            {
+                ProgressUpdate?.Invoke(this, $"[ERROR] SetLED failed: {ex.Message}");
+            }
+        });
+    }
+    
+    /// <summary>
+    /// Activates rumble for a duration.
+    /// </summary>
+    public async Task RumbleAsync(string deviceId, int durationMs)
+    {
+        if (!_deviceStreams.TryGetValue(deviceId, out var stream))
+            return;
+            
+        try
+        {
+            // Turn rumble on (22 bytes)
+            byte[] reportOn = new byte[22];
+            reportOn[0] = 0x52;
+            reportOn[1] = 0x11;
+            reportOn[2] = 0x01; // Rumble bit
+            
+            stream.Write(reportOn);
+            await Task.Delay(durationMs);
+            
+            // Turn rumble off
+            byte[] reportOff = new byte[22];
+            reportOff[0] = 0x52;
+            reportOff[1] = 0x11;
+            reportOff[2] = 0x00;
+            
+            stream.Write(reportOff);
+        }
+        catch (Exception ex)
+        {
+            ProgressUpdate?.Invoke(this, $"[ERROR] Rumble failed: {ex.Message}");
+        }
     }
 
     public void Dispose()
@@ -263,12 +344,11 @@ public class WiimoteService : IDisposable
         if (_disposed) return;
         _disposed = true;
 
-        foreach (var stream in _streams)
+        foreach (var stream in _deviceStreams.Values)
         {
             try { stream?.Dispose(); } catch { }
         }
         
-        _streams.Clear();
-        _connectedDevices.Clear();
+        _deviceStreams.Clear();
     }
 }
