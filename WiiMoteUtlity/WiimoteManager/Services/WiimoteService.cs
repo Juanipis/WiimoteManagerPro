@@ -304,9 +304,15 @@ public class WiimoteService : IDisposable
             //   - Byte 1 bits 5-7: Must be cleared (only bits 0-4 are buttons)
             //   - Byte 2 bits 5-7: Must be cleared (only bits 0-4 are buttons)
             // Total 10 bits for buttons: bits 0-4 from each byte
+            //
+            // SPECIAL CASE: Home button is at bit 7 of byte 1 (0x80 in byte, 0x8000 in word)
+            // This bit is OUTSIDE the 0x1F mask, so we must check it separately BEFORE masking
             
             ushort byte1 = data[1];
             ushort byte2 = data[2];
+            
+            // Check Home button BEFORE masking (bit 7 of byte 1)
+            bool homePressed = (byte1 & 0x80) != 0;
             
             // For report 0x31, mask out accelerometer bits from BOTH button bytes
             if (reportId == 0x31)
@@ -316,6 +322,12 @@ public class WiimoteService : IDisposable
             }
             
             ushort buttons = (ushort)((byte1 << 8) | byte2);
+            
+            // Add Home button back if it was pressed
+            if (homePressed)
+            {
+                buttons |= 0x8000;
+            }
             
             // Only log when buttons change
             if (buttons != (ushort)connection.Model.CurrentButtonState)
