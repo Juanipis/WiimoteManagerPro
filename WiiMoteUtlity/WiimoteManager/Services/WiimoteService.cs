@@ -1,354 +1,404 @@
 using HidSharp;
 using WiimoteManager.Models;
+using System.Runtime.InteropServices;
+using Microsoft.Win32.SafeHandles;
+using System.IO;
 
 namespace WiimoteManager.Services;
 
+/// <summary>
+/// FINAL SOLUTION: Windows Wiimote Service using HidStream.Write()
+/// Based on research from Dolphin Emulator and Julian Löhr
+/// 
+/// KEY INSIGHTS:
+/// - Windows 8+: HidStream.Write() works perfectly for Wiimotes
+/// - Windows 7: Has bug in HID Class Driver, WriteFile doesn't work for "-TR" Wiimotes
+/// - HidD_SetOutputReport() causes Wiimotes to turn off (don't use!)
+/// - Buffer MUST be exactly 22 bytes for Bluetooth Wiimotes
+/// 
+/// NO DRIVERS REQUIRED - works on Windows 8+ out-of-the-box with HidSharp
+/// </summary>
 public class WiimoteService : IDisposable
 {
     private const int NINTENDO_VENDOR_ID = 0x057E;
     private const int WIIMOTE_PRODUCT_ID = 0x0306;
     private const int WIIMOTE_PLUS_PRODUCT_ID = 0x0330;
     
-    private readonly Dictionary<string, HidStream> _deviceStreams = new();
+    // NOT NEEDED - Using HidStream.Write() directly works on Windows 8+
+    
+    private readonly Dictionary<string, WiimoteConnection> _connections = new();
     private bool _disposed = false;
+    private StreamWriter? _logWriter;
 
     public event EventHandler<string>? ProgressUpdate;
     public event EventHandler<WiimoteDevice>? WiimoteConnected;
     public event EventHandler<WiimoteDevice>? WiimoteDisconnected;
 
-    public async Task<int> DiscoverWiimotesAsync()
+    public WiimoteService()
+    {
+        try
+        {
+            var logPath = Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.Desktop), "wiimote_debug.log");
+            _logWriter = new StreamWriter(logPath, false) { AutoFlush = true };
+            _logWriter.WriteLine($"=== WIIMOTE DEBUG LOG STARTED {DateTime.Now} ===");
+        }
+        catch { }
+    }
+
+    private class WiimoteConnection
+    {
+        public HidDevice Device { get; set; } = null!;
+        public HidStream Stream { get; set; } = null!;
+        public WiimoteDevice Model { get; set; } = null!;
+        public Task? ReadTask { get; set; }
+        public CancellationTokenSource CancellationToken { get; set; } = new();
+    }
+
+    /// <summary>
+    /// Discovers and connects to all Wiimotes
+    /// </summary>
+    public async Task<List<WiimoteDevice>> StartDiscoveryAsync()
     {
         return await Task.Run(() =>
         {
+            var devices = new List<WiimoteDevice>();
+            
             try
             {
                 ProgressUpdate?.Invoke(this, "Searching for Wiimotes via HID...");
                 ProgressUpdate?.Invoke(this, $"[DEBUG] Looking for VID=0x{NINTENDO_VENDOR_ID:X4}, PID=0x{WIIMOTE_PRODUCT_ID:X4} or 0x{WIIMOTE_PLUS_PRODUCT_ID:X4}");
-                
-                var deviceList = DeviceList.Local;
-                var allDevices = deviceList.GetHidDevices().ToArray();
-                
-                ProgressUpdate?.Invoke(this, $"[DEBUG] Found {allDevices.Length} total HID devices");
-                
-                var wiimotes = allDevices.Where(d => 
-                    d.VendorID == NINTENDO_VENDOR_ID && 
-                    (d.ProductID == WIIMOTE_PRODUCT_ID || d.ProductID == WIIMOTE_PLUS_PRODUCT_ID)
-                ).ToList();
-                
-                ProgressUpdate?.Invoke(this, $"Found {wiimotes.Count} Wiimote HID device(s)");
-                
-                if (wiimotes.Count == 0)
-                {
-                    ProgressUpdate?.Invoke(this, "[INFO] No Wiimote HID devices found.");
-                    ProgressUpdate?.Invoke(this, "[INFO] Wiimote must be paired AND powered on");
-                    
-                    var nintendoDevices = allDevices.Where(d => d.VendorID == NINTENDO_VENDOR_ID).ToArray();
-                    if (nintendoDevices.Length > 0)
-                    {
-                        ProgressUpdate?.Invoke(this, $"[DEBUG] Found {nintendoDevices.Length} Nintendo device(s):");
-                        foreach (var dev in nintendoDevices)
-                        {
-                            ProgressUpdate?.Invoke(this, $"[DEBUG]   VID=0x{dev.VendorID:X4}, PID=0x{dev.ProductID:X4}");
-                        }
-                    }
-                    
-                    return 0;
-                }
 
-                int connectedCount = 0;
-                
-                for (int i = 0; i < wiimotes.Count; i++)
+                var deviceList = DeviceList.Local.GetHidDevices(NINTENDO_VENDOR_ID).Where(d =>
+                    d.ProductID == WIIMOTE_PRODUCT_ID || d.ProductID == WIIMOTE_PLUS_PRODUCT_ID
+                ).ToList();
+
+                var allDevices = DeviceList.Local.GetHidDevices().ToList();
+                ProgressUpdate?.Invoke(this, $"[DEBUG] Found {allDevices.Count} total HID devices");
+                ProgressUpdate?.Invoke(this, $"Found {deviceList.Count} Wiimote HID device(s)");
+
+                for (int i = 0; i < deviceList.Count; i++)
                 {
-                    var hidDevice = wiimotes[i];
-                    
+                    var hidDevice = deviceList[i];
+                    string deviceKey = $"wiimote_{i}";
+
+                    ProgressUpdate?.Invoke(this, $"[INFO] Connecting to Wiimote {i + 1}...");
+
                     try
                     {
-                        ProgressUpdate?.Invoke(this, $"[INFO] Connecting to Wiimote {i + 1}...");
-                        
-                        if (!hidDevice.TryOpen(out var stream))
+                        HidStream? stream = hidDevice.Open();
+                        if (stream != null)
                         {
-                            ProgressUpdate?.Invoke(this, $"[ERROR] Failed to open Wiimote {i + 1}");
-                            continue;
+                            ProgressUpdate?.Invoke(this, "[SUCCESS] Opened HID stream");
+
+                            var model = new WiimoteDevice
+                            {
+                                DeviceId = deviceKey,
+                                DeviceName = hidDevice.GetProductName() ?? "Nintendo RVL-CNT-01",
+                                HidPath = hidDevice.DevicePath ?? "",
+                                BluetoothAddress = "",
+                                IsPaired = true,
+                                IsConnected = true
+                            };
+
+                            var connection = new WiimoteConnection
+                            {
+                                Device = hidDevice,
+                                Stream = stream,
+                                Model = model
+                            };
+
+                            _connections[deviceKey] = connection;
+
+                            // Start reading
+                            connection.ReadTask = Task.Run(() => ReadLoop(deviceKey), connection.CancellationToken.Token);
+
+                            // Configure wiimote to send accelerometer data
+                            RequestAccelerometerData(deviceKey);
+
+                            // Turn on LED1 to show connection
+                            SetLED(deviceKey, 0x10);
+
+                            devices.Add(model);
+                            ProgressUpdate?.Invoke(this, $"✓ Wiimote {i + 1} connected!");
+                            WiimoteConnected?.Invoke(this, model);
                         }
-                        
-                        ProgressUpdate?.Invoke(this, $"[SUCCESS] Opened HID stream");
-                        
-                        // Create WiimoteDevice model
-                        var device = new WiimoteDevice
-                        {
-                            DeviceId = $"wiimote_{i}",
-                            DeviceName = $"Nintendo RVL-CNT-01 #{i + 1}",
-                            HidPath = hidDevice.DevicePath,
-                            IsConnected = true,
-                            IsPaired = true
-                        };
-                        
-                        // Store stream for later commands
-                        _deviceStreams[device.DeviceId] = stream;
-                        
-                        // Set LED to indicate which Wiimote (1-4)
-                        SetLED(stream, i % 4);
-                        _ = Task.Run(() => ReadInputLoop(stream, device));
-                        
-                        ProgressUpdate?.Invoke(this, $"✓ Wiimote {i + 1} connected!");
-                        WiimoteConnected?.Invoke(this, device);
-                        
-                        connectedCount++;
                     }
                     catch (Exception ex)
                     {
-                        ProgressUpdate?.Invoke(this, $"[ERROR] {ex.Message}");
+                        ProgressUpdate?.Invoke(this, $"[ERROR] Failed to connect to Wiimote {i + 1}: {ex.Message}");
                     }
                 }
-                
-                ProgressUpdate?.Invoke(this, $"Complete. {connectedCount} connected.");
-                return connectedCount;
+
+                ProgressUpdate?.Invoke(this, $"Complete. {devices.Count} connected.");
             }
             catch (Exception ex)
             {
-                ProgressUpdate?.Invoke(this, $"[FATAL] {ex.Message ?? "Unknown"}");
-                return 0;
+                ProgressUpdate?.Invoke(this, $"[ERROR] Discovery failed: {ex.Message}");
             }
+
+            return devices;
         });
     }
 
-    private void SetLED(HidStream stream, int ledIndex)
+    /// <summary>
+    /// Sends output report using HidStream.Write() - Works on Windows 8+
+    /// Report buffer must be 22 bytes for Bluetooth Wiimote
+    /// </summary>
+    private bool SendOutputReport(string deviceKey, byte[] reportData)
     {
+        if (!_connections.TryGetValue(deviceKey, out var connection))
+            return false;
+
         try
         {
-            byte ledFlags = ledIndex switch
+            // CRITICAL: Wiimote over Bluetooth expects EXACTLY 22 bytes
+            // Report ID is at index 0, followed by data
+            if (reportData.Length != 22)
             {
-                0 => 0x10, // LED 1
-                1 => 0x20, // LED 2
-                2 => 0x40, // LED 3  
-                3 => 0x80, // LED 4
-                _ => 0x10
-            };
-            
-            // Wiimote output reports must be exactly 22 bytes for Windows HID
-            byte[] report = new byte[22];
-            report[0] = 0x52;  // Bluetooth HID: 0x52 for output (0xA2 is for USB)
-            report[1] = 0x11;  // LED command
-            report[2] = ledFlags;
-            // Rest are zeros (padding)
-            
-            stream.Write(report);
-            ProgressUpdate?.Invoke(this, $"[DEBUG] Set LED {ledIndex + 1}");
-            
-            // Wait a bit then request button data
-            Thread.Sleep(100);
-            RequestButtonData(stream);
+                ProgressUpdate?.Invoke(this, $"[ERROR] Invalid report size: {reportData.Length}, expected 22");
+                return false;
+            }
+
+            // Use HidStream.Write() - this works on Windows 8+ according to research
+            connection.Stream.Write(reportData);
+            return true;
         }
         catch (Exception ex)
         {
-            ProgressUpdate?.Invoke(this, $"[WARN] LED failed: {ex.Message}");
-            // Even if LED fails, try to get button data
-            try { RequestButtonData(stream); } catch { }
-        }
-    }
-    
-    private void RequestButtonData(HidStream stream)
-    {
-        try
-        {
-            // Set report type to buttons + accelerometer (0x31)
-            // All Wiimote output reports must be 22 bytes
-            byte[] report = new byte[22];
-            report[0] = 0x52;  // Bluetooth HID output
-            report[1] = 0x12;  // Set data reporting mode
-            report[2] = 0x04;  // 0x04 = Continuous reporting (0x00 = disabled)
-            report[3] = 0x31;  // Report type: buttons + accelerometer
-            // Rest are zeros
-            
-            stream.Write(report);
-            ProgressUpdate?.Invoke(this, $"[DEBUG] Requested continuous button+accel data (report 0x31)");
-        }
-        catch (Exception ex)
-        {
-            ProgressUpdate?.Invoke(this, $"[WARN] Request data failed: {ex.Message}");
+            ProgressUpdate?.Invoke(this, $"[ERROR] SendOutputReport failed: {ex.Message}");
+            return false;
         }
     }
 
-    private async Task ReadInputLoop(HidStream stream, WiimoteDevice device)
+    /// <summary>
+    /// Sets LED state on Wiimote
+    /// </summary>
+    public bool SetLED(string deviceKey, int ledMask)
     {
-        byte[] buffer = new byte[stream.Device.GetMaxInputReportLength()];
+        byte[] report = new byte[22];
+        report[0] = 0x11; // LED/Rumble report ID
+        report[1] = (byte)((ledMask & 0xF0) | (_connections.ContainsKey(deviceKey) && _connections[deviceKey].Model.IsRumbling ? 0x01 : 0x00));
+
+        bool success = SendOutputReport(deviceKey, report);
+        if (!success)
+        {
+            ProgressUpdate?.Invoke(this, $"[ERROR] SetLED failed");
+        }
+
+        return success;
+    }
+
+    /// <summary>
+    /// Sets rumble state on Wiimote
+    /// </summary>
+    public bool SetRumble(string deviceKey, bool enabled)
+    {
+        if (!_connections.TryGetValue(deviceKey, out var connection))
+            return false;
+
+        connection.Model.IsRumbling = enabled;
+
+        // Preserve LED state
+        byte ledState = connection.Model.LedState;
         
+        byte[] report = new byte[22];
+        report[0] = 0x11;
+        report[1] = (byte)(ledState | (enabled ? 0x01 : 0x00));
+
+        bool success = SendOutputReport(deviceKey, report);
+        if (!success)
+        {
+            ProgressUpdate?.Invoke(this, $"[ERROR] SetRumble failed");
+        }
+
+        return success;
+    }
+
+    /// <summary>
+    /// Requests continuous accelerometer data (Report 0x31)
+    /// </summary>
+    public bool RequestAccelerometerData(string deviceKey)
+    {
+        byte[] report = new byte[22];
+        report[0] = 0x12; // Data reporting mode
+        report[1] = 0x00; // No rumble
+        report[2] = 0x31; // Report 0x31 - Buttons + Accelerometer
+
+        bool success = SendOutputReport(deviceKey, report);
+        if (!success)
+        {
+            ProgressUpdate?.Invoke(this, $"[WARN] Request data failed");
+        }
+
+        return success;
+    }
+
+    /// <summary>
+    /// Reads data from Wiimote continuously
+    /// </summary>
+    private void ReadLoop(string deviceKey)
+    {
+        if (!_connections.TryGetValue(deviceKey, out var connection))
+            return;
+
+        ProgressUpdate?.Invoke(this, "[DEBUG] Starting read loop (buffer size: 22)");
+
+        byte[] buffer = new byte[22];
+
         try
         {
-            ProgressUpdate?.Invoke(this, $"[DEBUG] Starting read loop (buffer size: {buffer.Length})");
-            
-            // CRITICAL: Set read timeout INSIDE the stream
-            stream.ReadTimeout = 5000; // 5 seconds per read attempt
-            
-            // Mark device as connected immediately
-            device.IsConnected = true;
-            device.SignalStrength = 100;
-            device.BatteryLevel = 85;
-            device.UpdateLastCommunication();
-            
-            while (!_disposed && stream.CanRead)
+            while (!connection.CancellationToken.Token.IsCancellationRequested)
             {
                 try
                 {
-                    int bytesRead = await stream.ReadAsync(buffer, 0, buffer.Length);
-                    
+                    int bytesRead = connection.Stream.Read(buffer, 0, buffer.Length);
                     if (bytesRead > 0)
                     {
-                        // Parse the report
-                        byte reportId = buffer[0];
-                        
-                        // Report 0x30-0x3F are input reports with button data
-                        if (reportId >= 0x30 && reportId <= 0x3F)
-                        {
-                            // Parse button state (bytes 1-2)
-                            ushort buttons = (ushort)((buffer[1] << 8) | buffer[2]);
-                            ParseButtons(device, buttons);
-                            
-                            // Parse accelerometer if available (report 0x31+)
-                            if (reportId >= 0x31 && bytesRead >= 6)
-                            {
-                                // Accelerometer values are 10-bit (0-1023)
-                                // Bytes 3,4,5 contain 8 MSBs, buttons contain 2 LSBs
-                                // For simplicity, just use the 8-bit values normalized to -1.0 to 1.0
-                                
-                                // Center point is ~128, range ~70-185
-                                device.AccelX = (buffer[3] - 128f) / 64f; // Normalize to roughly -1 to 1
-                                device.AccelY = (buffer[4] - 128f) / 64f;
-                                device.AccelZ = (buffer[5] - 128f) / 64f;
-                            }
-                            
-                            // Update connection indicators
-                            device.IsConnected = true;
-                            device.SignalStrength = 100; // Connected via HID = full strength
-                            device.BatteryLevel = 85; // Placeholder - will add proper battery reading
-                            device.UpdateLastCommunication();
-                            
-                            // Only log when buttons are pressed
-                            if (buttons != 0)
-                            {
-                                ProgressUpdate?.Invoke(this, $"[INPUT] Buttons: 0x{buttons:X4}");
-                            }
-                        }
+                        ProcessInputReport(deviceKey, buffer, bytesRead);
                     }
                 }
                 catch (TimeoutException)
                 {
-                    // Timeout is normal if no buttons pressed
-                    // Keep device connected status
-                    device.IsConnected = true;
-                    continue;
+                    // Normal - just keep reading
+                }
+                catch (Exception ex)
+                {
+                    ProgressUpdate?.Invoke(this, $"[ERROR] Read loop ended: {ex.Message}");
+                    break;
                 }
             }
         }
-        catch (Exception ex)
+        finally
         {
-            ProgressUpdate?.Invoke(this, $"[ERROR] Read loop ended: {ex.Message}");
-            device.IsConnected = false;
-            WiimoteDisconnected?.Invoke(this, device);
+            ProgressUpdate?.Invoke(this, $"Wiimote disconnected: {connection.Model.DeviceName}");
+            connection.Model.IsConnected = false;
+            WiimoteDisconnected?.Invoke(this, connection.Model);
         }
     }
-    
-    private void ParseButtons(WiimoteDevice device, ushort buttons)
-    {
-        // Wiimote button mapping - bytes come as [byte2][byte1]
-        // buffer[1] = second byte (high byte in ushort)
-        // buffer[2] = first byte (low byte in ushort)
-        
-        ButtonState newState = ButtonState.None;
-        
-        // Low byte (buffer[2]) - 0x00XX
-        if ((buttons & 0x0001) != 0) newState |= ButtonState.Two;
-        if ((buttons & 0x0002) != 0) newState |= ButtonState.One;
-        if ((buttons & 0x0004) != 0) newState |= ButtonState.B;
-        if ((buttons & 0x0008) != 0) newState |= ButtonState.A;
-        if ((buttons & 0x0010) != 0) newState |= ButtonState.Minus;
-        // 0x0020 and 0x0040 are reserved
-        if ((buttons & 0x0080) != 0) newState |= ButtonState.Home;
-        
-        // High byte (buffer[1]) - 0xXX00
-        if ((buttons & 0x0100) != 0) newState |= ButtonState.DPadLeft;
-        if ((buttons & 0x0200) != 0) newState |= ButtonState.DPadRight;
-        if ((buttons & 0x0400) != 0) newState |= ButtonState.DPadDown;
-        if ((buttons & 0x0800) != 0) newState |= ButtonState.DPadUp;
-        if ((buttons & 0x1000) != 0) newState |= ButtonState.Plus;
-        
-        device.CurrentButtonState = newState;
-    }
-    
-    /// <summary>
-    /// Sets LED state and rumble for a specific Wiimote.
-    /// </summary>
-    public async Task SetLEDAsync(string deviceId, byte ledMask, bool rumble)
-    {
-        await Task.Run(() =>
-        {
-            if (!_deviceStreams.TryGetValue(deviceId, out var stream))
-            {
-                ProgressUpdate?.Invoke(this, $"[ERROR] Device {deviceId} not found");
-                return;
-            }
 
+    /// <summary>
+    /// Processes incoming HID report from Wiimote
+    /// </summary>
+    private void ProcessInputReport(string deviceKey, byte[] data, int length)
+    {
+        if (!_connections.TryGetValue(deviceKey, out var connection))
+            return;
+
+        if (length < 2)
+            return;
+
+        byte reportId = data[0];
+        
+        // Log to file only (not UI)
+        try
+        {
+            _logWriter?.WriteLine($"[{DateTime.Now:HH:mm:ss.fff}] RAW: Len={length} ID=0x{reportId:X2} Bytes={BitConverter.ToString(data, 0, Math.Min(length, 10))}");
+        }
+        catch { }
+        
+        // Parse button data - present in reports 0x30, 0x31, 0x32, 0x33, 0x34, 0x35, 0x36, 0x37
+        if (length >= 4 && reportId >= 0x30 && reportId <= 0x3F)
+        {
+            // Button data is in bytes 1-2, BIG-ENDIAN (byte 1 = high, byte 2 = low)
+            // NOTE: In report 0x31, accelerometer LSBs are embedded:
+            //   - Byte 1 bits 5-7: Must be cleared (only bits 0-4 are buttons)
+            //   - Byte 2 bits 5-7: Must be cleared (only bits 0-4 are buttons)
+            // Total 10 bits for buttons: bits 0-4 from each byte
+            
+            ushort byte1 = data[1];
+            ushort byte2 = data[2];
+            
+            // For report 0x31, mask out accelerometer bits from BOTH button bytes
+            if (reportId == 0x31)
+            {
+                byte1 = (ushort)(byte1 & 0x1F); // Clear bits 5-7 (keep only 0-4)
+                byte2 = (ushort)(byte2 & 0x1F); // Clear bits 5-7 (keep only 0-4)
+            }
+            
+            ushort buttons = (ushort)((byte1 << 8) | byte2);
+            
+            // Only log when buttons change
+            if (buttons != (ushort)connection.Model.CurrentButtonState)
+            {
+                connection.Model.CurrentButtonState = (ButtonState)buttons;
+                ProgressUpdate?.Invoke(this, $"[INPUT] Buttons: 0x{buttons:X4}");
+                _logWriter?.WriteLine($"[{DateTime.Now:HH:mm:ss.fff}] BUTTONS: 0x{buttons:X4}");
+            }
+        }
+
+        // Parse accelerometer data (Report 0x31)
+        if (reportId == 0x31 && length >= 6)
+        {
             try
             {
-                // LED command: 0x52 (Bluetooth HID output), 0x11 (LED), flags
-                byte[] report = new byte[22];
-                report[0] = 0x52;
-                report[1] = 0x11;
-                report[2] = (byte)(ledMask | (rumble ? 0x01 : 0x00)); // Rumble is bit 0
+                // Accelerometer data: 10 bits per axis
+                // Upper 8 bits in bytes 3-5, lower 2 bits embedded in button bytes:
+                //   - X LSBs: byte 2 bits 6-7  
+                //   - Y LSBs: byte 1 bits 6-7
+                //   - Z LSBs: byte 2 bits 5 and byte 1 bit 5
                 
-                stream.Write(report);
-                ProgressUpdate?.Invoke(this, $"[DEBUG] Set LED: 0x{ledMask:X2}, Rumble: {rumble}");
+                byte accelXHigh = data[3];
+                byte accelYHigh = data[4];
+                byte accelZHigh = data[5];
+                
+                // Extract LSBs from button bytes (before masking removed them)
+                byte accelXLow = (byte)((data[2] >> 6) & 0x03);  // Bits 6-7 of byte 2
+                byte accelYLow = (byte)((data[1] >> 6) & 0x03);  // Bits 6-7 of byte 1
+                byte accelZLow = (byte)(((data[2] >> 5) & 0x01) | (((data[1] >> 5) & 0x01) << 1)); // Bit 5 of bytes 1-2
+                
+                // Combine to get 10-bit values
+                int accelX10bit = (accelXHigh << 2) | accelXLow;
+                int accelY10bit = (accelYHigh << 2) | accelYLow;
+                int accelZ10bit = (accelZHigh << 2) | accelZLow;
+
+                // Convert to normalized values (-1.0 to 1.0, with neutral ~512 for 10-bit)
+                connection.Model.AccelX = (accelX10bit - 512) / 512.0f;
+                connection.Model.AccelY = (accelY10bit - 512) / 512.0f;
+                connection.Model.AccelZ = (accelZ10bit - 512) / 512.0f;
+
+                // Battery level is in byte 6 (full byte, 0-255 scale)
+                if (length >= 7)
+                {
+                    connection.Model.BatteryLevel = (data[6] * 100) / 255;
+                }
+
+                // Update connection indicators
+                connection.Model.SignalStrength = 100;
+                connection.Model.UpdateLastCommunication();
+                
+                _logWriter?.WriteLine($"[{DateTime.Now:HH:mm:ss.fff}] ACCEL: X={connection.Model.AccelX:F2} Y={connection.Model.AccelY:F2} Z={connection.Model.AccelZ:F2} Bat={connection.Model.BatteryLevel}%");
+                
+                // Show in UI occasionally
+                if (Random.Shared.Next(50) == 0)
+                {
+                    ProgressUpdate?.Invoke(this, $"[ACCEL] X:{connection.Model.AccelX:F2} Y:{connection.Model.AccelY:F2} Z:{connection.Model.AccelZ:F2}");
+                }
             }
             catch (Exception ex)
             {
-                ProgressUpdate?.Invoke(this, $"[ERROR] SetLED failed: {ex.Message}");
+                _logWriter?.WriteLine($"[{DateTime.Now:HH:mm:ss.fff}] ERROR: Accel parsing - {ex.Message}");
+                ProgressUpdate?.Invoke(this, $"[ERROR] Accel parsing failed: {ex.Message}");
             }
-        });
-    }
-    
-    /// <summary>
-    /// Activates rumble for a duration.
-    /// </summary>
-    public async Task RumbleAsync(string deviceId, int durationMs)
-    {
-        if (!_deviceStreams.TryGetValue(deviceId, out var stream))
-            return;
-            
-        try
-        {
-            // Turn rumble on (22 bytes)
-            byte[] reportOn = new byte[22];
-            reportOn[0] = 0x52;
-            reportOn[1] = 0x11;
-            reportOn[2] = 0x01; // Rumble bit
-            
-            stream.Write(reportOn);
-            await Task.Delay(durationMs);
-            
-            // Turn rumble off
-            byte[] reportOff = new byte[22];
-            reportOff[0] = 0x52;
-            reportOff[1] = 0x11;
-            reportOff[2] = 0x00;
-            
-            stream.Write(reportOff);
-        }
-        catch (Exception ex)
-        {
-            ProgressUpdate?.Invoke(this, $"[ERROR] Rumble failed: {ex.Message}");
         }
     }
 
     public void Dispose()
     {
-        if (_disposed) return;
-        _disposed = true;
+        if (_disposed)
+            return;
 
-        foreach (var stream in _deviceStreams.Values)
+        foreach (var connection in _connections.Values)
         {
-            try { stream?.Dispose(); } catch { }
+            connection.CancellationToken.Cancel();
+            connection.Stream?.Dispose();
         }
+
+        _connections.Clear();
         
-        _deviceStreams.Clear();
+        _logWriter?.WriteLine($"=== LOG ENDED {DateTime.Now} ===");
+        _logWriter?.Dispose();
+        
+        _disposed = true;
+        GC.SuppressFinalize(this);
     }
 }

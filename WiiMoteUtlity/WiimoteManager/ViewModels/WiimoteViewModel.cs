@@ -191,8 +191,8 @@ public partial class WiimoteViewModel : ObservableObject, IDisposable
         bool shouldRumble = VibrationIntensity == 0f;
         VibrationIntensity = shouldRumble ? 1.0f : 0f;
 
-        byte ledMask = CalculateLEDMask();
-        await _wiimoteService.SetLEDAsync(Device.DeviceId, ledMask, shouldRumble);
+        _wiimoteService.SetRumble(Device.DeviceId, shouldRumble);
+        await Task.CompletedTask;
     }
 
     /// <summary>
@@ -201,7 +201,8 @@ public partial class WiimoteViewModel : ObservableObject, IDisposable
     private async Task UpdateLEDs()
     {
         byte ledMask = CalculateLEDMask();
-        await _wiimoteService.SetLEDAsync(Device.DeviceId, ledMask, Device.IsRumbling);
+        _wiimoteService.SetLED(Device.DeviceId, ledMask);
+        await Task.CompletedTask;
     }
 
     /// <summary>

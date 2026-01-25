@@ -14,7 +14,6 @@ namespace WiimoteManager.ViewModels;
 public partial class MainViewModel : ObservableObject
 {
     private readonly WiimoteService _wiimoteService;
-    private readonly HidCommunicationService _hidService;
     private CancellationTokenSource? _discoveryCancellation;
 
     /// <summary>
@@ -53,10 +52,11 @@ public partial class MainViewModel : ObservableObject
     [ObservableProperty]
     public int discoveredDeviceCount = 0;
 
+    private Window? _mainWindow;
+
     public MainViewModel()
     {
         _wiimoteService = new WiimoteService();
-        _hidService = new HidCommunicationService();
 
         // Subscribe to service events
         _wiimoteService.WiimoteConnected += OnWiimoteConnected;
@@ -64,6 +64,11 @@ public partial class MainViewModel : ObservableObject
         _wiimoteService.ProgressUpdate += OnProgressUpdate;
         
         AddDebugLog("MainViewModel initialized");
+    }
+    
+    public void SetWindow(Window window)
+    {
+        _mainWindow = window;
     }
     
     private void AddDebugLog(string? message)
@@ -83,8 +88,11 @@ public partial class MainViewModel : ObservableObject
         try
         {
             AddDebugLog("Starting initialization...");
-            StatusMessage = "Ready. Press 'Scan for Wiimotes' to connect.";
+            
+            // WiimoteService doesn't need window initialization
+            StatusMessage = "Ready. Click 'Scan & Sync' to discover Wiimotes.";
             AddDebugLog("Initialization complete");
+            
             await Task.CompletedTask;
         }
         catch (Exception ex)
@@ -107,24 +115,24 @@ public partial class MainViewModel : ObservableObject
 
         AddDebugLog("=== STARTING WIIMOTE SCAN ===");
         IsDiscovering = true;
-        StatusMessage = "Searching for paired Wiimotes...";
+        StatusMessage = "Searching for Wiimotes...";
         DiscoveredDeviceCount = 0;
 
         try
         {
             AddDebugLog("Connecting to Wiimotes...");
-            int count = await _wiimoteService.DiscoverWiimotesAsync();
+            var devices = await _wiimoteService.StartDiscoveryAsync();
             
-            DiscoveredDeviceCount = count;
-            AddDebugLog($"Scan completed. Found {count} Wiimote(s)");
+            DiscoveredDeviceCount = devices.Count;
+            AddDebugLog($"Scan completed. Found {devices.Count} Wiimote(s)");
             
-            if (count > 0)
+            if (devices.Count > 0)
             {
-                StatusMessage = $"Connected to {count} Wiimote(s)!";
+                StatusMessage = $"Found {devices.Count} Wiimote(s)!";
             }
             else
             {
-                StatusMessage = "No Wiimotes found. See instructions below.";
+                StatusMessage = "No Wiimotes found. Press RED SYNC button and try again.";
             }
         }
         catch (Exception ex)
@@ -246,7 +254,6 @@ public partial class MainViewModel : ObservableObject
     {
         _discoveryCancellation?.Dispose();
         _wiimoteService?.Dispose();
-        _hidService?.Dispose();
 
         foreach (var vm in ConnectedWiimotes)
         {

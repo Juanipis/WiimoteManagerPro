@@ -19,6 +19,7 @@ public partial class MainWindow : Window
         try
         {
             _viewModel = new MainViewModel();
+            _viewModel.SetWindow(this); // CRITICAL: Pass window for Raw Input
             DataContext = _viewModel;
             await _viewModel.InitializeAsync();
         }
