@@ -86,7 +86,10 @@ public class WiimoteService : IDisposable
                 for (int i = 0; i < deviceList.Count; i++)
                 {
                     var hidDevice = deviceList[i];
-                    string deviceKey = $"wiimote_{i}";
+                    string deviceKey = hidDevice.DevicePath ?? $"wiimote_{i}";
+
+                    // Skip if already connected
+                    if (_connections.ContainsKey(deviceKey)) continue;
 
                     ProgressUpdate?.Invoke(this, $"[INFO] Connecting to Wiimote {i + 1}...");
 
@@ -135,8 +138,9 @@ public class WiimoteService : IDisposable
                                 TimeSpan.FromMilliseconds(200)
                             );
 
-                            // Turn on LED1 to show connection
-                            SetLED(deviceKey, 0x10);
+                            // Turn on appropriate LED based on index (1=LED1, 2=LED2, etc)
+                            int ledMask = 0x10 << (devices.Count); // 0x10, 0x20, 0x40, 0x80
+                            SetLED(deviceKey, ledMask);
 
                             devices.Add(model);
                             ProgressUpdate?.Invoke(this, $"✓ Wiimote {i + 1} connected!");
