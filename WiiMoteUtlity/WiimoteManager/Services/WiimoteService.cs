@@ -122,8 +122,8 @@ public class WiimoteService : IDisposable
                             // Start reading
                             connection.ReadTask = Task.Run(() => ReadLoop(deviceKey), connection.CancellationToken.Token);
 
-                            // Configure wiimote to send accelerometer data
-                            RequestAccelerometerData(deviceKey);
+                            // USE REPORT 0x30 (Buttons Only) - More stable for -TR Wiimotes than 0x31
+                            RequestDataReport(deviceKey);
 
                             // Request initial status (battery + Home button)
                             RequestStatus(deviceKey);
@@ -239,16 +239,15 @@ public class WiimoteService : IDisposable
     }
 
     /// <summary>
-    /// Requests continuous accelerometer data (Report 0x31)
+    /// Requests data reporting (Report 0x31 - Buttons + Accel)
     /// </summary>
-    public bool RequestAccelerometerData(string deviceKey)
+    public bool RequestDataReport(string deviceKey)
     {
         byte[] report = new byte[22];
         report[0] = 0x12; // Data reporting mode
-        report[1] = 0x00; // No rumble
+        report[1] = 0x00; // Continuous
         report[2] = 0x31; // Report 0x31 - Buttons + Accelerometer
-        // NOTE: Home button will be garbage in this mode, but we poll Status (0x20) to get it.
-
+        
         bool success = SendOutputReport(deviceKey, report);
         if (!success)
         {
@@ -395,7 +394,7 @@ public class WiimoteService : IDisposable
         }
         
         // Parse button data - present in reports 0x30, 0x31, 0x32, 0x33, 0x34, 0x35, 0x36, 0x37
-        if (length >= 4 && reportId >= 0x30 && reportId <= 0x3F)
+        if (length >= 3 && reportId >= 0x30 && reportId <= 0x3F)
         {
             // Button data is in bytes 1-2, BIG-ENDIAN (byte 1 = high, byte 2 = low)
             // NOTE: In report 0x31, accelerometer LSBs are embedded:
@@ -413,12 +412,12 @@ public class WiimoteService : IDisposable
             ushort byte2 = byte2Raw;
             
             // For report 0x31, mask out accelerometer bits from BOTH button bytes
-            // Note: We are now using Report 0x30 so this won't run, but keeping for safety
             if (reportId == 0x31)
             {
                 byte1 = (ushort)(byte1 & 0x1F); // Clear bits 5-7 (keep only 0-4)
                 byte2 = (ushort)(byte2 & 0x1F); // Clear bits 5-7 (keep only 0-4)
             }
+            // For Report 0x30, NO MASKING is needed as it is purely buttons!
             
             ushort buttons = (ushort)((byte1 << 8) | byte2);
             
@@ -430,8 +429,15 @@ public class WiimoteService : IDisposable
                 var currentHome = connection.Model.CurrentButtonState & ButtonState.Home;
                 connection.Model.CurrentButtonState = (ButtonState)buttons | currentHome;
                 
-                ProgressUpdate?.Invoke(this, $"[INPUT] Buttons: 0x{buttons:X4}");
-                _logWriter?.WriteLine($"[{DateTime.Now:HH:mm:ss.fff}] BUTTONS: 0x{buttons:X4}");
+            // Ensure progress update is marshalled to UI thread if someone is listening
+            // Note: ProgressUpdate is usually bound to an ObservableCollection/String in ViewModel
+            // which throws if updated from background thread.
+            // However, WiimoteService is a "Service" and shouldn't know about UI Dispatcher.
+            // The ViewModel should marshal it. BUT, the standard EventHandler invocation happens on THIS thread.
+            
+            // Temporary fix: Do NOT invoke ProgressUpdate from high-frequency loops.
+            // ProgressUpdate?.Invoke(this, $"[INPUT] Buttons: 0x{buttons:X4}");
+            _logWriter?.WriteLine($"[{DateTime.Now:HH:mm:ss.fff}] BUTTONS: 0x{buttons:X4}");
                 
                 // If in diagnostic test mode, log the press
                 if (_diagnosticLogger != null && buttons != 0)
@@ -490,13 +496,15 @@ public class WiimoteService : IDisposable
                 // Show in UI occasionally
                 if (Random.Shared.Next(50) == 0)
                 {
-                    ProgressUpdate?.Invoke(this, $"[ACCEL] X:{connection.Model.AccelX:F2} Y:{connection.Model.AccelY:F2} Z:{connection.Model.AccelZ:F2}");
+                    // DO NOT invoke ProgressUpdate from here - it's a background thread and causes cross-thread exceptions in the ViewModel's ObservableCollection
+                    // ProgressUpdate?.Invoke(this, $"[ACCEL] X:{connection.Model.AccelX:F2} Y:{connection.Model.AccelY:F2} Z:{connection.Model.AccelZ:F2}");
                 }
             }
             catch (Exception ex)
             {
                 _logWriter?.WriteLine($"[{DateTime.Now:HH:mm:ss.fff}] ERROR: Accel parsing - {ex.Message}");
-                ProgressUpdate?.Invoke(this, $"[ERROR] Accel parsing failed: {ex.Message}");
+                // DO NOT invoke ProgressUpdate from background thread
+                // ProgressUpdate?.Invoke(this, $"[ERROR] Accel parsing failed: {ex.Message}");
             }
         }
     }

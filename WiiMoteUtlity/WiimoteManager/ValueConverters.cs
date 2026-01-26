@@ -116,3 +116,49 @@ public class InverseBoolConverter : IValueConverter
         return false;
     }
 }
+
+/// <summary>
+/// Converts a boolean value to text based on a parameter (e.g. "ON|OFF").
+/// </summary>
+public class BooleanToTextConverter : IValueConverter
+{
+    public object Convert(object? value, Type targetType, object? parameter, CultureInfo culture)
+    {
+        if (value is bool boolValue && parameter is string options)
+        {
+            var parts = options.Split('|');
+            if (parts.Length == 2)
+            {
+                return boolValue ? parts[0] : parts[1];
+            }
+        }
+        return value?.ToString() ?? "";
+    }
+
+    public object ConvertBack(object? value, Type targetType, object? parameter, CultureInfo culture)
+    {
+        throw new NotImplementedException();
+    }
+}
+
+/// <summary>
+/// Simple boolean to color converter for Emulation toggle.
+/// </summary>
+public class BooleanToColorConverter : IValueConverter
+{
+    public object Convert(object? value, Type targetType, object? parameter, CultureInfo culture)
+    {
+        if (value is bool boolValue)
+        {
+             // Green for ON (#00AA44), Grey for OFF (#444444)
+             return new SolidColorBrush(
+                 (Color)ColorConverter.ConvertFromString(boolValue ? "#00AA44" : "#444444"));
+        }
+        return new SolidColorBrush(Colors.Gray);
+    }
+
+    public object ConvertBack(object? value, Type targetType, object? parameter, CultureInfo culture)
+    {
+        throw new NotImplementedException();
+    }
+}

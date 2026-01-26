@@ -232,10 +232,11 @@ public partial class MainViewModel : ObservableObject
     /// </summary>
     private void OnProgressUpdate(object? sender, string? message)
     {
-        Application.Current?.Dispatcher.Invoke(() =>
+        // Safe dispatch to UI thread
+        Application.Current?.Dispatcher.InvokeAsync(() =>
         {
             StatusMessage = message ?? "Unknown progress";
-            AddDebugLog($"{message ?? "null"}");
+            // AddDebugLog($"{message ?? "null"}"); // Too verbose for UI log
         });
     }
 

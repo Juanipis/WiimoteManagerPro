@@ -379,6 +379,15 @@
           "lib/net6.0/Moq.dll": {}
         }
       },
+      "Nefarius.ViGEm.Client/1.21.256": {
+        "type": "package",
+        "compile": {
+          "lib/netstandard2.0/Nefarius.ViGEm.Client.dll": {}
+        },
+        "runtime": {
+          "lib/netstandard2.0/Nefarius.ViGEm.Client.dll": {}
+        }
+      },
       "NETStandard.Library/1.6.1": {
         "type": "package",
         "dependencies": {
@@ -1797,7 +1806,8 @@
         "framework": ".NETCoreApp,Version=v8.0",
         "dependencies": {
           "CommunityToolkit.Mvvm": "8.2.2",
-          "HidSharp": "2.6.2"
+          "HidSharp": "2.6.2",
+          "Nefarius.ViGEm.Client": "1.21.256"
         },
         "compile": {
           "bin/placeholder/WiimoteManager.dll": {}
@@ -2281,6 +2291,19 @@
         "moq.4.20.72.nupkg.sha512",
         "moq.nuspec",
         "readme.md"
+      ]
+    },
+    "Nefarius.ViGEm.Client/1.21.256": {
+      "sha512": "VJMO6hkalOZ7YdXTwcR881aTgPZlN7thEs3x6CWE/kEu7SdE5bY7QuDXkR2eqXfPAee4NrxInIAqa45PorpTsA==",
+      "type": "package",
+      "path": "nefarius.vigem.client/1.21.256",
+      "files": [
+        ".nupkg.metadata",
+        ".signature.p7s",
+        "ViGEm_Icon.png",
+        "lib/netstandard2.0/Nefarius.ViGEm.Client.dll",
+        "nefarius.vigem.client.1.21.256.nupkg.sha512",
+        "nefarius.vigem.client.nuspec"
       ]
     },
     "NETStandard.Library/1.6.1": {

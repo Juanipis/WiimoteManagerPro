@@ -1,4 +1,7 @@
 using HidSharp;
+using Nefarius.ViGEm.Client;
+using Nefarius.ViGEm.Client.Targets;
+using Nefarius.ViGEm.Client.Targets.Xbox360;
 
 namespace WiimoteHardwareTest;
 
@@ -10,16 +13,40 @@ class Program
     
     static HidStream? _stream;
     static HidDevice? _device;
+    static ViGEmClient? _vigem;
+    static IXbox360Controller? _controller;
     
     static void Main(string[] args)
     {
-        Console.WriteLine("=== WIIMOTE HARDWARE TEST ===\n");
+        Console.WriteLine("=== WIIMOTE & VIGEM DIAGNOSTIC ===\n");
         
+        // 1. Test ViGEmBus
+        Console.WriteLine("STEP 1: Testing Virtual Controller Driver...");
+        try 
+        {
+            _vigem = new ViGEmClient();
+            Console.WriteLine("[SUCCESS] ViGEmBus Client initialized!");
+            
+            _controller = _vigem.CreateXbox360Controller();
+            Console.WriteLine("[SUCCESS] Created Virtual Xbox 360 Controller object");
+            
+            _controller.Connect();
+            Console.WriteLine("[SUCCESS] Connected Virtual Controller to system");
+            Console.WriteLine("   -> Check 'joy.cpl' or Device Manager for 'Xbox 360 Controller for Windows'");
+        }
+        catch (Exception ex)
+        {
+            Console.WriteLine($"[CRITICAL ERROR] ViGEmBus Failed: {ex.Message}");
+        }
+
+        Console.WriteLine("\n------------------------------------------------\n");
+
+        // 2. Test Wiimote
+        Console.WriteLine("STEP 2: Testing Wiimote Connection...");
         try
         {
-            Console.WriteLine("1. Searching for Wiimote...");
             var deviceList = DeviceList.Local;
-            var devices = deviceList.GetHidDevices();
+            var devices = deviceList.GetHidDevices().ToList();
             
             _device = devices.FirstOrDefault(d => 
                 d.VendorID == NINTENDO_VID && 
@@ -27,219 +54,114 @@ class Program
             
             if (_device == null)
             {
-                Console.WriteLine("No Wiimote found.");
+                Console.WriteLine("[ERROR] No Wiimote found. Is it paired?");
                 return;
             }
             
-            Console.WriteLine($"Found: VID=0x{_device.VendorID:X4}, PID=0x{_device.ProductID:X4}");
-            Console.WriteLine($"Max Input: {_device.GetMaxInputReportLength()} bytes");
-            Console.WriteLine($"Max Output: {_device.GetMaxOutputReportLength()} bytes\n");
+            Console.WriteLine($"[SUCCESS] Found Wiimote: {_device.GetProductName()}");
             
-            Console.WriteLine("2. Opening HID stream...");
             if (!_device.TryOpen(out _stream))
             {
-                Console.WriteLine("Failed to open stream");
+                Console.WriteLine("[ERROR] Failed to open HID stream.");
                 return;
             }
-            Console.WriteLine("Stream opened\n");
+            Console.WriteLine("[SUCCESS] Opened HID stream");
             
+            // INIT: Set Data Reporting Mode (0x30: Buttons Only, 0x31: Buttons + Accel)
+            // This is CRITICAL for receiving data!
+            Console.WriteLine("   -> Sending Data Reporting Request (0x12 0x00 0x30)...");
+            byte[] report = new byte[22];
+            report[0] = 0x12; // Report Mode
+            report[1] = 0x00; // Continuous
+            report[2] = 0x30; // 0x30 = Core Buttons (No Accel to keep it simple)
+            _stream.Write(report);
+            
+            // Set LED 1
+            report[0] = 0x11;
+            report[1] = 0x10; 
+            _stream.Write(report);
+            Console.WriteLine("[SUCCESS] Sent Configuration Commands");
+
+            Console.WriteLine("\nSTEP 3: READING INPUTS (Press CTRL+C to stop)");
+            Console.WriteLine("   -> Press buttons on the Wiimote.");
+            Console.WriteLine("   -> Watch the RAW HEX output below.");
+            
+            byte[] buffer = new byte[22];
             while (true)
             {
-                Console.WriteLine("\n=== TEST MENU ===");
-                Console.WriteLine("1. Test LED 1");
-                Console.WriteLine("2. Test LED 2");
-                Console.WriteLine("3. Test LED 3");
-                Console.WriteLine("4. Test LED 4");
-                Console.WriteLine("5. Test ALL LEDs");
-                Console.WriteLine("6. Test Rumble");
-                Console.WriteLine("7. Request Buttons (0x30)");
-                Console.WriteLine("8. Request Buttons+Accel (0x31)");
-                Console.WriteLine("9. Read 10 packets");
-                Console.WriteLine("D. Dump device info");
-                Console.WriteLine("0. Exit");
-                Console.Write("\nChoice: ");
-                
-                var choice = Console.ReadLine()?.Trim().ToUpper();
-                
-                switch (choice)
+                try
                 {
-                    case "1": TestLED(0x10, "LED 1"); break;
-                    case "2": TestLED(0x20, "LED 2"); break;
-                    case "3": TestLED(0x40, "LED 3"); break;
-                    case "4": TestLED(0x80, "LED 4"); break;
-                    case "5": TestLED(0xF0, "ALL LEDs"); break;
-                    case "6": TestRumble(); break;
-                    case "7": RequestData(0x30); break;
-                    case "8": RequestData(0x31); break;
-                    case "9": ReadData(); break;
-                    case "D": DumpInfo(); break;
-                    case "0": return;
+                    int n = _stream.Read(buffer, 0, buffer.Length);
+                    if (n > 0)
+                    {
+                       ParseAndDebug(buffer);
+                    }
+                }
+                catch (TimeoutException)
+                {
+                    // Ignore timeouts, just keep waiting
                 }
             }
         }
         catch (Exception ex)
         {
-            Console.WriteLine($"ERROR: {ex.Message}");
-        }
-        finally
-        {
-            _stream?.Dispose();
+            Console.WriteLine($"[ERROR] Wiimote Test Failed: {ex.Message}");
         }
     }
     
-    static void TestLED(byte ledMask, string name)
+    static void ParseAndDebug(byte[] data)
     {
-        Console.WriteLine($"\nTesting {name}...");
+        byte rid = data[0];
         
-        // Test Write() method
-        Console.WriteLine("  [Write() method]");
-        var testsWrite = new[] { 
-            (22, (byte)0xA2), (22, (byte)0x52) 
-        };
-        
-        foreach (var (size, prefix) in testsWrite)
+        // Filter for Core Button Reports (0x30)
+        if (rid == 0x30)
         {
-            try
+            // Bytes 1 and 2 contain buttons (Big Endian)
+            ushort b1 = data[1];
+            ushort b2 = data[2];
+            ushort buttons = (ushort)((b1 << 8) | b2);
+            
+            if (buttons != 0) // Only log when pressed
             {
-                Console.Write($"    {size}b, 0x{prefix:X2}... ");
-                byte[] report = new byte[size];
-                report[0] = prefix;
-                report[1] = 0x11;
-                report[2] = ledMask;
-                _stream!.Write(report);
-                Console.WriteLine("OK");
-                Thread.Sleep(300);
-            }
-            catch (Exception ex)
-            {
-                Console.WriteLine($"FAIL: {ex.Message}");
-            }
-        }
-        
-        // Test SetFeature() method
-        Console.WriteLine("  [SetFeature() method - Report ID based]");
-        var testsFeature = new[] { 
-            (22, (byte)0x11), // Report ID = 0x11 (LED command)
-        };
-        
-        foreach (var (size, reportId) in testsFeature)
-        {
-            try
-            {
-                Console.Write($"    {size}b, ReportID=0x{reportId:X2}... ");
-                byte[] report = new byte[size];
-                report[0] = reportId;  // Report ID
-                report[1] = ledMask;   // LED mask (no 0x11 prefix needed)
-                _stream!.SetFeature(report);
-                Console.WriteLine("OK - CHECK WIIMOTE NOW!");
-                Thread.Sleep(1500);
-            }
-            catch (Exception ex)
-            {
-                Console.WriteLine($"FAIL: {ex.Message}");
-            }
-        }
-    }
-    
-    static void TestRumble()
-    {
-        Console.WriteLine("\nTesting Rumble...");
-        
-        var tests = new[] { (22, (byte)0xA2), (22, (byte)0x52) };
-        
-        foreach (var (size, prefix) in tests)
-        {
-            try
-            {
-                Console.Write($"  {size}b, 0x{prefix:X2}... ");
-                byte[] reportOn = new byte[size];
-                reportOn[0] = prefix;
-                reportOn[1] = 0x11;
-                reportOn[2] = 0x01;
-                _stream!.Write(reportOn);
-                Console.Write("ON ");
-                Thread.Sleep(500);
+                Console.Write($"\r[INPUT] RAW: {b1:X2} {b2:X2} -> BUTTONS: {buttons:X4} | ");
                 
-                byte[] reportOff = new byte[size];
-                reportOff[0] = prefix;
-                reportOff[1] = 0x11;
-                _stream!.Write(reportOff);
-                Console.WriteLine("OFF");
-            }
-            catch (Exception ex)
-            {
-                Console.WriteLine($"FAIL: {ex.Message}");
-            }
-        }
-    }
-    
-    static void RequestData(byte type)
-    {
-        Console.WriteLine($"\nRequesting 0x{type:X2}...");
-        
-        var tests = new[] {
-            (22, (byte)0xA2, (byte)0x04),
-            (22, (byte)0x52, (byte)0x04)
-        };
-        
-        foreach (var (size, prefix, cont) in tests)
-        {
-            try
-            {
-                Console.Write($"  {size}b, 0x{prefix:X2}, cont=0x{cont:X2}... ");
-                byte[] report = new byte[size];
-                report[0] = prefix;
-                report[1] = 0x12;
-                report[2] = cont;
-                report[3] = type;
-                _stream!.Write(report);
-                Console.WriteLine("OK");
-            }
-            catch (Exception ex)
-            {
-                Console.WriteLine($"FAIL: {ex.Message}");
-            }
-        }
-    }
-    
-    static void ReadData()
-    {
-        Console.WriteLine("\nReading 10 packets...");
-        _stream!.ReadTimeout = 2000;
-        byte[] buffer = new byte[_device!.GetMaxInputReportLength()];
-        
-        for (int i = 0; i < 10; i++)
-        {
-            try
-            {
-                int n = _stream.Read(buffer, 0, buffer.Length);
-                if (n > 0)
+                // Decode known bits
+                List<string> pressed = new();
+                if ((buttons & 0x0001) != 0) pressed.Add("2");
+                if ((buttons & 0x0002) != 0) pressed.Add("1");
+                if ((buttons & 0x0004) != 0) pressed.Add("B");
+                if ((buttons & 0x0008) != 0) pressed.Add("A");
+                if ((buttons & 0x0010) != 0) pressed.Add("-");
+                
+                if ((buttons & 0x0080) != 0) pressed.Add("HOME");
+                
+                if ((buttons & 0x0100) != 0) pressed.Add("LEFT");
+                if ((buttons & 0x0200) != 0) pressed.Add("RIGHT");
+                if ((buttons & 0x0400) != 0) pressed.Add("DOWN");
+                if ((buttons & 0x0800) != 0) pressed.Add("UP");
+                if ((buttons & 0x1000) != 0) pressed.Add("+");
+                
+                Console.Write(string.Join(", ", pressed));
+                Console.Write("                           "); // Clear line remainder
+                
+                // Forward to Xbox for testing
+                if (_controller != null)
                 {
-                    Console.Write($"  [{i+1}] {n}b: ");
-                    Console.Write(string.Join(" ", buffer.Take(10).Select(b => $"{b:X2}")));
+                    _controller.ResetReport();
+                    if (pressed.Contains("A")) _controller.SetButtonState(Xbox360Button.A, true); // Wiimote A -> Xbox A
+                    if (pressed.Contains("B")) _controller.SetButtonState(Xbox360Button.B, true); // Wiimote B -> Xbox B
+                    if (pressed.Contains("1")) _controller.SetButtonState(Xbox360Button.X, true); // Wiimote 1 -> Xbox X
+                    if (pressed.Contains("2")) _controller.SetButtonState(Xbox360Button.Y, true); // Wiimote 2 -> Xbox Y
+                    if (pressed.Contains("HOME")) _controller.SetButtonState(Xbox360Button.Guide, true);
                     
-                    byte rid = buffer[0];
-                    if (rid >= 0x30 && n >= 3)
-                    {
-                        ushort btns = (ushort)((buffer[1] << 8) | buffer[2]);
-                        Console.Write($" | Btns=0x{btns:X4}");
-                        if (rid >= 0x31 && n >= 6)
-                            Console.Write($" | Accel={buffer[3]},{buffer[4]},{buffer[5]}");
-                    }
-                    Console.WriteLine();
+                    if (pressed.Contains("LEFT")) _controller.SetButtonState(Xbox360Button.Up, true);    // Dpad Rotation (Horizontal)
+                    if (pressed.Contains("RIGHT")) _controller.SetButtonState(Xbox360Button.Down, true);
+                    if (pressed.Contains("DOWN")) _controller.SetButtonState(Xbox360Button.Left, true);
+                    if (pressed.Contains("UP")) _controller.SetButtonState(Xbox360Button.Right, true);
+                    
+                    _controller.SubmitReport();
                 }
             }
-            catch (TimeoutException) { Console.WriteLine($"  [{i+1}] Timeout"); }
-            catch (Exception ex) { Console.WriteLine($"  [{i+1}] Error: {ex.Message}"); }
         }
-    }
-    
-    static void DumpInfo()
-    {
-        Console.WriteLine("\nDevice Info:");
-        Console.WriteLine($"  VID: 0x{_device!.VendorID:X4}");
-        Console.WriteLine($"  PID: 0x{_device.ProductID:X4}");
-        Console.WriteLine($"  Max In: {_device.GetMaxInputReportLength()}");
-        Console.WriteLine($"  Max Out: {_device.GetMaxOutputReportLength()}");
     }
 }

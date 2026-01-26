@@ -32,6 +32,8 @@
         <local:RumbleColorConverter x:Key="RumbleColorConverter"/>
         <local:EmptyCollectionToVisibilityConverter x:Key="EmptyCollectionConverter"/>
         <local:InverseBoolConverter x:Key="InverseBoolConverter"/>
+        <local:BooleanToTextConverter x:Key="BooleanToTextConverter"/>
+        <local:BooleanToColorConverter x:Key="BooleanToColorConverter"/>
 
         <!-- Window Style -->
         <Style TargetType="Window">

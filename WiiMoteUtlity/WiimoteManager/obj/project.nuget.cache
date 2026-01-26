@@ -1,11 +1,12 @@
 {
   "version": 2,
-  "dgSpecHash": "O6CiFJueWko=",
+  "dgSpecHash": "E4fQerR7UBU=",
   "success": true,
   "projectFilePath": "C:\\Users\\juani\\Projects\\contest\\UCHWiiRemoteMod\\WiiMoteUtlity\\WiimoteManager\\WiimoteManager.csproj",
   "expectedPackageFiles": [
     "C:\\Users\\juani\\.nuget\\packages\\communitytoolkit.mvvm\\8.2.2\\communitytoolkit.mvvm.8.2.2.nupkg.sha512",
     "C:\\Users\\juani\\.nuget\\packages\\hidsharp\\2.6.2\\hidsharp.2.6.2.nupkg.sha512",
+    "C:\\Users\\juani\\.nuget\\packages\\nefarius.vigem.client\\1.21.256\\nefarius.vigem.client.1.21.256.nupkg.sha512",
     "C:\\Users\\juani\\.nuget\\packages\\microsoft.windows.sdk.net.ref\\10.0.19041.56\\microsoft.windows.sdk.net.ref.10.0.19041.56.nupkg.sha512"
   ],
   "logs": []

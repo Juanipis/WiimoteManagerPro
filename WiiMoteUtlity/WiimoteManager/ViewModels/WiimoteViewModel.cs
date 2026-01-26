@@ -1,5 +1,7 @@
 using CommunityToolkit.Mvvm.ComponentModel;
 using CommunityToolkit.Mvvm.Input;
+using System.IO;
+using System.Windows;
 using WiimoteManager.Models;
 using WiimoteManager.Services;
 
@@ -12,14 +14,22 @@ namespace WiimoteManager.ViewModels;
 public partial class WiimoteViewModel : ObservableObject, IDisposable
 {
     private readonly WiimoteService _wiimoteService;
+    private readonly VirtualControllerService _virtualControllerService;
     private CancellationTokenSource? _readLoopCancellation;
     private bool _disposed = false;
+    private MappingProfile _mappingProfile = new();
 
     /// <summary>
     /// The underlying WiimoteDevice model.
     /// </summary>
     [ObservableProperty]
     public WiimoteDevice device;
+
+    /// <summary>
+    /// True if virtual Xbox controller emulation is enabled.
+    /// </summary>
+    [ObservableProperty]
+    public bool isEmulationEnabled = false;
 
     /// <summary>
     /// True if this Wiimote is currently reading data.
@@ -91,12 +101,146 @@ public partial class WiimoteViewModel : ObservableObject, IDisposable
     {
         Device = device;
         _wiimoteService = wiimoteService;
+        _virtualControllerService = new VirtualControllerService(); // New service instance per Wiimote for now
+        
+        LoadProfile(); // Try to load existing profile
 
-        // Subscribe to device property changes
+        // FIX: Initialize StatusText with current connection state
+        StatusText = Device.IsConnected ? "Connected" : "Disconnected";
+
+            // Subscribe to device property changes
         Device.PropertyChanged += (s, e) =>
         {
-            OnDevicePropertyChanged(e.PropertyName);
+            // 1. FAST PATH: Update Virtual Controller (Background Thread)
+            if (e.PropertyName == nameof(WiimoteDevice.CurrentButtonState) && IsEmulationEnabled)
+            {
+                try
+                {
+                    _virtualControllerService.UpdateController(Device.DeviceId, Device, _mappingProfile);
+                }
+                catch (Exception ex)
+                {
+                    Console.WriteLine($"[ViewModel] Controller update error: {ex.Message}");
+                }
+            }
+
+            // 2. SLOW PATH: Update UI (Main Thread)
+            Application.Current?.Dispatcher.Invoke(() => 
+            {
+                OnDevicePropertyChanged(e.PropertyName);
+            });
         };
+    }
+
+    private void LoadProfile()
+    {
+        try
+        {
+            if (File.Exists("mapping_profile.json"))
+            {
+                var json = File.ReadAllText("mapping_profile.json");
+                var profile = System.Text.Json.JsonSerializer.Deserialize<MappingProfile>(json);
+                if (profile != null)
+                {
+                    _mappingProfile = profile;
+                    return;
+                }
+            }
+        }
+        catch (Exception ex) 
+        {
+            Console.WriteLine($"Error loading profile: {ex.Message}");
+        }
+        
+        _mappingProfile = new MappingProfile();
+    }
+
+    private void SaveProfile()
+    {
+        try
+        {
+            var json = System.Text.Json.JsonSerializer.Serialize(_mappingProfile, new System.Text.Json.JsonSerializerOptions { WriteIndented = true });
+            File.WriteAllText("mapping_profile.json", json);
+        }
+        catch (Exception ex)
+        {
+            Console.WriteLine($"Error saving profile: {ex.Message}");
+        }
+    }
+
+    /// <summary>
+    /// Toggles virtual controller emulation.
+    /// </summary>
+    [RelayCommand]
+    public async Task ToggleEmulation()
+    {
+        // FIX: Double-toggle issue
+        // Since ToggleButton is bound to IsEmulationEnabled (TwoWay) AND calls this Command,
+        // clicking it toggles the property once (via binding) and then running the command
+        // might toggle it AGAIN if we do `IsEmulationEnabled = !IsEmulationEnabled`.
+        
+        // Instead, we should rely on the property setter to trigger the logic, 
+        // OR decouple the command from the toggle button if the property binding handles it.
+        
+        // BUT, since we need to handle "Driver Unavailable" logic which might revert the toggle,
+        // it's safer to handle the logic in the property setter or a dedicated method called by the setter.
+        
+        // For now, let's assume the binding toggled it. We just need to sync the state.
+        // Wait... standard ToggleButton with Command usually fires Command AFTER changing IsChecked.
+        
+        // Let's force the state based on the current value, which should be the DESIRED state
+        bool desiredState = IsEmulationEnabled;
+        
+        if (!_virtualControllerService.IsAvailable)
+        {
+            StatusText = $"Emulation Unavailable: {_virtualControllerService.InitializationError ?? "ViGEmBus driver not found."}";
+            if (desiredState) IsEmulationEnabled = false; // Revert
+            return;
+        }
+
+        // Logic is now effectively handled by the setter property change, 
+        // OR we need to invoke it here if the logic wasn't in the setter.
+        
+        // Let's MOVE the logic to a separate method called HandleEmulationStateChange
+        // and call it here to ensure it runs.
+        
+        await HandleEmulationStateChange(desiredState);
+    }
+
+    partial void OnIsEmulationEnabledChanged(bool value)
+    {
+        // This method is automatically generated by CommunityToolkit.Mvvm
+        // when [ObservableProperty] is used. We use it to trigger logic.
+        _ = HandleEmulationStateChange(value);
+    }
+
+    private async Task HandleEmulationStateChange(bool enabled)
+    {
+        if (enabled)
+        {
+            try 
+            {
+                Console.WriteLine($"[ViewModel] Connecting Virtual Controller for {Device.DeviceId}...");
+                _virtualControllerService.ConnectController(Device.DeviceId);
+                StatusText = "Virtual Controller Connected";
+                Console.WriteLine($"[ViewModel] Emulation Started for {Device.DeviceId}");
+            }
+            catch (Exception ex)
+            {
+                 StatusText = $"Emulation Error: {ex.Message}";
+                 // If we failed, we must set it back to false, but be careful of infinite loops
+                 if (IsEmulationEnabled) IsEmulationEnabled = false;
+                 Console.WriteLine($"[ViewModel] Emulation Failed: {ex.Message}");
+            }
+        }
+        else
+        {
+            Console.WriteLine($"[ViewModel] Disconnecting Virtual Controller for {Device.DeviceId}...");
+            _virtualControllerService.DisconnectController(Device.DeviceId);
+            StatusText = "Virtual Controller Disconnected";
+        }
+        
+        await Task.CompletedTask;
     }
 
     /// <summary>
@@ -196,6 +340,21 @@ public partial class WiimoteViewModel : ObservableObject, IDisposable
     }
 
     /// <summary>
+    /// Opens the mapping configuration window.
+    /// </summary>
+    [RelayCommand]
+    public void OpenMapping()
+    {
+        var mappingViewModel = new MappingViewModel(_mappingProfile, Device, () => 
+        {
+            SaveProfile();
+        });
+        
+        var mappingWindow = new Views.MappingWindow(mappingViewModel);
+        mappingWindow.ShowDialog();
+    }
+
+    /// <summary>
     /// Opens the button test diagnostic window.
     /// </summary>
     [RelayCommand]
@@ -275,6 +434,7 @@ public partial class WiimoteViewModel : ObservableObject, IDisposable
 
             case nameof(WiimoteDevice.CurrentButtonState):
                 UpdateButtonDisplay();
+                // Controller update is now handled in the background thread directly
                 break;
 
             case nameof(WiimoteDevice.AccelX):
@@ -308,6 +468,7 @@ public partial class WiimoteViewModel : ObservableObject, IDisposable
         if (_disposed)
             return;
 
+        _virtualControllerService?.Dispose();
         _readLoopCancellation?.Dispose();
         _disposed = true;
     }
