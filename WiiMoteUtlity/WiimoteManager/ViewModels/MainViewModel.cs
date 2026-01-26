@@ -14,7 +14,7 @@ namespace WiimoteManager.ViewModels;
 public partial class MainViewModel : ObservableObject
 {
     private readonly WiimoteService _wiimoteService;
-    private CancellationTokenSource? _discoveryCancellation;
+    private CancellationTokenSource? _discoveryCancellation = new();
 
     /// <summary>
     /// Collection of currently connected/detected Wiimotes.

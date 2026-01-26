@@ -15,7 +15,7 @@ public partial class WiimoteViewModel : ObservableObject, IDisposable
 {
     private readonly WiimoteService _wiimoteService;
     private readonly VirtualControllerService _virtualControllerService;
-    private CancellationTokenSource? _readLoopCancellation;
+    private CancellationTokenSource? _readLoopCancellation = new();
     private bool _disposed = false;
     private MappingProfile _mappingProfile = new();
 

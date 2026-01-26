@@ -26,6 +26,9 @@ public class HidCommunicationService : IDisposable
     /// </summary>
     public event EventHandler<string>? DeviceDisconnected;
 
+    // Supress warning CS0067: Event is declared but never used (placeholder for future logic)
+    private void RaiseDeviceDisconnected(string deviceId) => DeviceDisconnected?.Invoke(this, deviceId);
+
     /// <summary>
     /// Registers a device for HID communication monitoring.
     /// </summary>
