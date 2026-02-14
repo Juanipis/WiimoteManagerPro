@@ -3,15 +3,20 @@
              xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
              xmlns:local="clr-namespace:WiimoteManager"
              Background="Transparent">
-    <Border Background="#2D2D2D"
-            BorderBrush="#3D3D3D"
-            BorderThickness="1"
-            CornerRadius="8"
-            Padding="20"
-            Margin="10"
-            MaxWidth="350">
+    <Border Background="#232323"
+            BorderBrush="#0078D4"
+            BorderThickness="2"
+            CornerRadius="12"
+            Padding="25"
+            Margin="12"
+            MinWidth="380"
+            MaxWidth="420">
+        <Border.Effect>
+            <DropShadowEffect Color="Black" BlurRadius="20" ShadowDepth="0" Opacity="0.4"/>
+        </Border.Effect>
         <Grid>
             <Grid.RowDefinitions>
+                <RowDefinition Height="Auto"/>
                 <RowDefinition Height="Auto"/>
                 <RowDefinition Height="Auto"/>
                 <RowDefinition Height="Auto"/>
@@ -22,18 +27,18 @@
             </Grid.RowDefinitions>
 
             <!-- Device Name & Status -->
-            <Grid Grid.Row="0" Margin="0,0,0,15">
+            <Grid Grid.Row="0" Margin="0,0,0,20">
                 <Grid.ColumnDefinitions>
                     <ColumnDefinition Width="*"/>
                     <ColumnDefinition Width="Auto"/>
                 </Grid.ColumnDefinitions>
 
                 <StackPanel VerticalAlignment="Center">
-                    <TextBlock FontSize="16" FontWeight="Bold" Foreground="#FFFFFF">
+                    <TextBlock FontSize="20" FontWeight="Bold" Foreground="#FFFFFF">
                         <Run Text="🎮"/>
                         <Run Text="{Binding Device.DisplayName, Mode=OneWay}"/>
                     </TextBlock>
-                    <TextBlock FontSize="11" Foreground="#AAAAAA" Margin="0,3,0,0">
+                    <TextBlock FontSize="12" Foreground="#AAAAAA" Margin="0,5,0,0">
                         <Run Text="{Binding Device.BluetoothAddress, Mode=OneWay}"/>
                     </TextBlock>
                 </StackPanel>
@@ -41,10 +46,14 @@
                 <!-- Status Badge -->
                 <Border Grid.Column="1"
                        Background="{Binding Device.IsConnected, Converter={StaticResource ConnectionStatusColor}}"
-                       CornerRadius="12"
-                       Padding="12,6"
+                       CornerRadius="16"
+                       Padding="14,8"
                        VerticalAlignment="Top">
-                    <TextBlock Text="{Binding StatusText}" FontSize="11" FontWeight="Bold" Foreground="White"/>
+                    <Border.Effect>
+                        <DropShadowEffect Color="{Binding Device.IsConnected, Converter={StaticResource ConnectionStatusColor}}" 
+                                        BlurRadius="10" ShadowDepth="0" Opacity="0.5"/>
+                    </Border.Effect>
+                    <TextBlock Text="{Binding StatusText}" FontSize="12" FontWeight="Bold" Foreground="White"/>
                 </Border>
             </Grid>
 
@@ -188,8 +197,45 @@
                 </Grid>
             </Border>
 
+            <!-- Profile Controls -->
+            <Border Grid.Row="5" Background="#1E1E1E" Padding="12,10" Margin="0,0,0,15">
+                <Grid>
+                    <Grid.ColumnDefinitions>
+                        <ColumnDefinition Width="Auto"/>
+                        <ColumnDefinition Width="*"/>
+                        <ColumnDefinition Width="Auto"/>
+                        <ColumnDefinition Width="Auto"/>
+                    </Grid.ColumnDefinitions>
+                    
+                    <TextBlock Text="📁" VerticalAlignment="Center" Margin="0,0,10,0" Foreground="#AAAAAA"/>
+                    
+                    <ComboBox Grid.Column="1" 
+                              ItemsSource="{Binding ProfileNames}"
+                              SelectedItem="{Binding SelectedProfileName}"
+                              Margin="0,0,5,0"
+                              Height="25"
+                              BorderThickness="0"/>
+                              
+                    <Button Grid.Column="2" 
+                            Content="➕" 
+                            Command="{Binding CreateProfileCommand}"
+                            Width="25" Height="25"
+                            Background="#333333" Foreground="White"
+                            BorderThickness="0" Margin="0,0,5,0"
+                            ToolTip="Create New Profile"/>
+                            
+                    <Button Grid.Column="3" 
+                            Content="🗑️" 
+                            Command="{Binding DeleteProfileCommand}"
+                            Width="25" Height="25"
+                            Background="#AA3333" Foreground="White"
+                            BorderThickness="0"
+                            ToolTip="Delete Profile"/>
+                </Grid>
+            </Border>
+
             <!-- Action Buttons -->
-            <Grid Grid.Row="5" Margin="0,0,0,0">
+            <Grid Grid.Row="6" Margin="0,0,0,0">
                 <Grid.ColumnDefinitions>
                     <ColumnDefinition Width="*"/>
                     <ColumnDefinition Width="*"/>
@@ -249,7 +295,7 @@
             </Grid>
 
             <!-- Emulation Controls -->
-            <Grid Grid.Row="6" Margin="0,15,0,0">
+            <Grid Grid.Row="7" Margin="0,15,0,0">
                  <Grid.ColumnDefinitions>
                      <ColumnDefinition Width="*" />
                      <ColumnDefinition Width="Auto" />

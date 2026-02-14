@@ -185,6 +185,16 @@ public partial class MainViewModel : ObservableObject
         StatusMessage = "Discovered devices cleared.";
         UpdateConnectionStatus();
     }
+    
+    /// <summary>
+    /// Opens the Profile Manager window.
+    /// </summary>
+    [RelayCommand]
+    public void OpenProfileManager()
+    {
+        var profileManagerWindow = new Views.ProfileManagerWindow();
+        profileManagerWindow.ShowDialog();
+    }
 
     /// <summary>
     /// Handles Wiimote connection event.

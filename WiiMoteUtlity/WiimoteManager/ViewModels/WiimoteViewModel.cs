@@ -1,5 +1,6 @@
 using CommunityToolkit.Mvvm.ComponentModel;
 using CommunityToolkit.Mvvm.Input;
+using System.Collections.ObjectModel;
 using System.IO;
 using System.Windows;
 using WiimoteManager.Models;
@@ -15,6 +16,8 @@ public partial class WiimoteViewModel : ObservableObject, IDisposable
 {
     private readonly WiimoteService _wiimoteService;
     private readonly VirtualControllerService _virtualControllerService;
+    private readonly ProfileService _profileService;
+    private readonly ProcessMonitorService _processMonitor;
     private CancellationTokenSource? _readLoopCancellation = new();
     private bool _disposed = false;
     private MappingProfile _mappingProfile = new();
@@ -24,6 +27,18 @@ public partial class WiimoteViewModel : ObservableObject, IDisposable
     /// </summary>
     [ObservableProperty]
     public WiimoteDevice device;
+
+    /// <summary>
+    /// Available profiles.
+    /// </summary>
+    [ObservableProperty]
+    public ObservableCollection<string> profileNames = new();
+
+    /// <summary>
+    /// Currently selected profile name.
+    /// </summary>
+    [ObservableProperty]
+    public string selectedProfileName = "Default";
 
     /// <summary>
     /// True if virtual Xbox controller emulation is enabled.
@@ -102,8 +117,20 @@ public partial class WiimoteViewModel : ObservableObject, IDisposable
         Device = device;
         _wiimoteService = wiimoteService;
         _virtualControllerService = new VirtualControllerService(); // New service instance per Wiimote for now
+        _profileService = new ProfileService();
+        _processMonitor = new ProcessMonitorService(_profileService);
         
-        LoadProfile(); // Try to load existing profile
+        // Subscribe to auto-profile switching
+        _processMonitor.ProfileSwitchRequested += OnProfileSwitchRequested;
+        _processMonitor.IsEnabled = true; // Enable by default
+
+        RefreshProfiles();
+        
+        // Load default or first available
+        if (ProfileNames.Contains("Default"))
+            SelectedProfileName = "Default";
+        else if (ProfileNames.Count > 0)
+            SelectedProfileName = ProfileNames[0];
 
         // FIX: Initialize StatusText with current connection state
         StatusText = Device.IsConnected ? "Connected" : "Disconnected";
@@ -132,39 +159,56 @@ public partial class WiimoteViewModel : ObservableObject, IDisposable
         };
     }
 
-    private void LoadProfile()
+    partial void OnSelectedProfileNameChanged(string value)
     {
-        try
+        if (!string.IsNullOrEmpty(value))
         {
-            if (File.Exists("mapping_profile.json"))
-            {
-                var json = File.ReadAllText("mapping_profile.json");
-                var profile = System.Text.Json.JsonSerializer.Deserialize<MappingProfile>(json);
-                if (profile != null)
-                {
-                    _mappingProfile = profile;
-                    return;
-                }
-            }
+            _mappingProfile = _profileService.LoadProfile(value);
+            _mappingProfile.RecordUsage(); // Track usage
+            _profileService.SaveProfile(_mappingProfile); // Save usage stats
         }
-        catch (Exception ex) 
-        {
-            Console.WriteLine($"Error loading profile: {ex.Message}");
-        }
-        
-        _mappingProfile = new MappingProfile();
     }
 
-    private void SaveProfile()
+    private void RefreshProfiles()
     {
-        try
+        var current = SelectedProfileName;
+        ProfileNames.Clear();
+        foreach (var name in _profileService.GetProfileNames())
         {
-            var json = System.Text.Json.JsonSerializer.Serialize(_mappingProfile, new System.Text.Json.JsonSerializerOptions { WriteIndented = true });
-            File.WriteAllText("mapping_profile.json", json);
+            ProfileNames.Add(name);
         }
-        catch (Exception ex)
+        
+        if (ProfileNames.Contains(current))
+            SelectedProfileName = current;
+        else if (ProfileNames.Contains("Default"))
+            SelectedProfileName = "Default";
+    }
+
+    [RelayCommand]
+    public void CreateProfile()
+    {
+        // Create a copy of the current profile
+        var newProfile = _profileService.CreateNewProfile(SelectedProfileName + " Copy");
+        RefreshProfiles();
+        SelectedProfileName = newProfile.Name;
+    }
+
+    [RelayCommand]
+    public void DeleteProfile()
+    {
+        if (SelectedProfileName == "Default") return;
+
+        _profileService.DeleteProfile(SelectedProfileName);
+        RefreshProfiles();
+    }
+
+    private void SaveCurrentProfile()
+    {
+        if (_mappingProfile != null)
         {
-            Console.WriteLine($"Error saving profile: {ex.Message}");
+            // Ensure the profile name matches the selection (if we allow renaming later)
+            // For now, we assume the file name is the source of truth for the list
+            _profileService.SaveProfile(_mappingProfile);
         }
     }
 
@@ -347,7 +391,7 @@ public partial class WiimoteViewModel : ObservableObject, IDisposable
     {
         var mappingViewModel = new MappingViewModel(_mappingProfile, Device, () => 
         {
-            SaveProfile();
+            SaveCurrentProfile();
         });
         
         var mappingWindow = new Views.MappingWindow(mappingViewModel);
@@ -459,6 +503,22 @@ public partial class WiimoteViewModel : ObservableObject, IDisposable
                 break;
         }
     }
+    
+    /// <summary>
+    /// Handles automatic profile switching when a game is detected
+    /// </summary>
+    private void OnProfileSwitchRequested(object? sender, ProfileSwitchEventArgs e)
+    {
+        Application.Current?.Dispatcher.Invoke(() =>
+        {
+            if (ProfileNames.Contains(e.ProfileName))
+            {
+                SelectedProfileName = e.ProfileName;
+                StatusText = $"Auto-switched to: {e.ProfileName}";
+                Console.WriteLine($"[WiimoteViewModel] Auto-switched to profile '{e.ProfileName}' for {e.ProcessName}");
+            }
+        });
+    }
 
     /// <summary>
     /// Disposes resources.
@@ -468,6 +528,7 @@ public partial class WiimoteViewModel : ObservableObject, IDisposable
         if (_disposed)
             return;
 
+        _processMonitor?.Dispose();
         _virtualControllerService?.Dispose();
         _readLoopCancellation?.Dispose();
         _disposed = true;

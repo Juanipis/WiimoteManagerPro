@@ -4,6 +4,21 @@ using WiimoteManager.Models;
 namespace WiimoteManager.Models
 {
     /// <summary>
+    /// Accelerometer mapping configuration for racing games and motion controls
+    /// </summary>
+    public class AccelerometerMapping
+    {
+        public bool TiltSteeringEnabled { get; set; } = false;
+        public string TiltAxis { get; set; } = "X"; // X, Y, or Z
+        public float Sensitivity { get; set; } = 1.0f;
+        public float DeadZone { get; set; } = 0.1f;
+        public bool InvertAxis { get; set; } = false;
+        
+        // Which Xbox control to map to
+        public string TargetControl { get; set; } = "LeftStickX"; // LeftStickX, RightStickX, etc.
+    }
+
+    /// <summary>
     /// Defines which Wiimote input triggers an Xbox action
     /// </summary>
     public partial class ControlMapping : ObservableObject
@@ -27,7 +42,31 @@ namespace WiimoteManager.Models
     /// </summary>
     public class MappingProfile
     {
+        public const int CurrentVersion = 2; // Version tracking for migrations
+        
+        // Basic Info
         public string Name { get; set; } = "Default";
+        public int Version { get; set; } = CurrentVersion;
+        
+        // Metadata
+        public string Description { get; set; } = string.Empty;
+        public List<string> Tags { get; set; } = new();
+        public List<string> AssociatedGames { get; set; } = new(); // Process names or game titles
+        public string Author { get; set; } = "User";
+        public string IconEmoji { get; set; } = "🎮"; // Visual identifier
+        
+        // Timestamps
+        public DateTime CreatedAt { get; set; } = DateTime.Now;
+        public DateTime ModifiedAt { get; set; } = DateTime.Now;
+        public DateTime LastUsedAt { get; set; } = DateTime.MinValue;
+        
+        // Usage Statistics
+        public int UsageCount { get; set; } = 0;
+        public bool IsFavorite { get; set; } = false;
+        
+        // Accelerometer Settings (for racing games)
+        public bool UseAccelerometer { get; set; } = false;
+        public AccelerometerMapping AccelMapping { get; set; } = new();
 
         // Standard Buttons
         public ControlMapping A { get; set; } = new() { TargetName = "A" };
@@ -90,6 +129,53 @@ namespace WiimoteManager.Models
             Back.WiimoteButton = ButtonState.Minus;
             // Home -> Guide
             Guide.WiimoteButton = ButtonState.Home;
+        }
+        
+        /// <summary>
+        /// Validates the profile for consistency and completeness
+        /// </summary>
+        public bool IsValid(out List<string> errors)
+        {
+            errors = new List<string>();
+            
+            if (string.IsNullOrWhiteSpace(Name))
+                errors.Add("Profile name cannot be empty");
+            
+            if (Version > CurrentVersion)
+                errors.Add($"Profile version {Version} is newer than supported version {CurrentVersion}");
+            
+            if (UseAccelerometer && AccelMapping == null)
+                errors.Add("Accelerometer enabled but mapping is null");
+            
+            if (UseAccelerometer && AccelMapping != null)
+            {
+                if (AccelMapping.Sensitivity <= 0)
+                    errors.Add("Accelerometer sensitivity must be positive");
+                
+                if (AccelMapping.DeadZone < 0 || AccelMapping.DeadZone > 1)
+                    errors.Add("Accelerometer dead zone must be between 0 and 1");
+            }
+            
+            return errors.Count == 0;
+        }
+        
+        /// <summary>
+        /// Creates a deep copy of this profile
+        /// </summary>
+        public MappingProfile Clone()
+        {
+            var json = System.Text.Json.JsonSerializer.Serialize(this);
+            var clone = System.Text.Json.JsonSerializer.Deserialize<MappingProfile>(json);
+            return clone ?? new MappingProfile();
+        }
+        
+        /// <summary>
+        /// Updates usage statistics
+        /// </summary>
+        public void RecordUsage()
+        {
+            LastUsedAt = DateTime.Now;
+            UsageCount++;
         }
     }
 }
