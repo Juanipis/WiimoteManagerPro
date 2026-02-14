@@ -2,54 +2,37 @@ name: Release
 
 on:
   push:
-    tags:
-      - 'v*'
+    branches: [ main ]
   workflow_dispatch:
-    inputs:
-      version:
-        description: 'Version tag (e.g. v1.0.1)'
-        required: true
-        default: 'v1.0.1'
 
 permissions:
   contents: write
+  issues: write
+  pull-requests: write
 
 jobs:
-  build:
+  release:
     runs-on: windows-latest
 
     steps:
-    - uses: actions/checkout@v3
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
 
-    - name: Setup .NET
-      uses: actions/setup-dotnet@v3
-      with:
-        dotnet-version: 8.0.x
+      - name: Setup .NET
+        uses: actions/setup-dotnet@v4
+        with:
+          dotnet-version: 8.0.x
 
-    - name: Set Version Variable
-      shell: pwsh
-      run: |
-        $tag = ""
-        if ("${{ github.event_name }}" -eq "workflow_dispatch") {
-          $tag = "${{ github.event.inputs.version }}"
-        } else {
-          $tag = "${{ github.ref_name }}"
-        }
-        # Strip 'v' prefix for dotnet version
-        $version = $tag -replace "^v", ""
-        "VERSION_TAG=$tag" | Out-File -FilePath $env:GITHUB_ENV -Append
-        "DOTNET_VERSION=$version" | Out-File -FilePath $env:GITHUB_ENV -Append
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: 20
 
-    - name: Publish WiimoteManager
-      run: dotnet publish WiiMoteUtlity/WiimoteManager/WiimoteManager.csproj -c Release -r win-x64 --self-contained false -o ./publish /p:Version=${{ env.DOTNET_VERSION }}
+      - name: Install semantic-release dependencies
+        run: npm install --no-audit --no-fund
 
-    - name: Zip Release
-      run: Compress-Archive -Path ./publish/* -DestinationPath ./WiimoteManager-win64.zip
-
-    - name: Create Release
-      uses: softprops/action-gh-release@v1
-      with:
-        tag_name: ${{ env.VERSION_TAG }}
-        files: |
-          WiimoteManager-win64.zip
-        generate_release_notes: true
+      - name: Run semantic-release
+        run: npx semantic-release
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}

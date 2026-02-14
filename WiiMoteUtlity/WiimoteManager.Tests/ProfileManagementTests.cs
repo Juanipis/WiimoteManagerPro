@@ -339,6 +339,26 @@ public class ProfileManagementTests : IDisposable
         Assert.Contains(templates, t => t is ShooterTemplate);
         Assert.Contains(templates, t => t is SportsTemplate);
         Assert.Contains(templates, t => t is RocketLeagueTemplate);
+        Assert.Contains(templates, t => t is UCHProfileTemplate);
+    }
+
+    [Fact]
+    public void UCHProfileTemplate_ShouldUseRequestedLayout()
+    {
+        var template = new UCHProfileTemplate();
+        var profile = template.CreateProfile();
+
+        Assert.Equal("UCH profile", profile.Name);
+        Assert.Equal(ButtonState.Two, profile.A.WiimoteButton);          // Jump
+        Assert.Equal(ButtonState.One, profile.X.WiimoteButton);          // Sprint
+        Assert.Equal(ButtonState.Plus, profile.Start.WiimoteButton);     // Pause
+        Assert.Equal(ButtonState.Minus, profile.Y.WiimoteButton);        // Dance
+        Assert.Equal(ButtonState.A, profile.LeftShoulder.WiimoteButton); // Rotate left
+        Assert.Equal(ButtonState.B, profile.RightShoulder.WiimoteButton);// Rotate right
+        Assert.Equal(ButtonState.DPadRight, profile.DPadUp.WiimoteButton);
+        Assert.Equal(ButtonState.DPadLeft, profile.DPadDown.WiimoteButton);
+        Assert.Equal(ButtonState.DPadUp, profile.DPadLeft.WiimoteButton);
+        Assert.Equal(ButtonState.DPadDown, profile.DPadRight.WiimoteButton);
     }
     
     [Fact]

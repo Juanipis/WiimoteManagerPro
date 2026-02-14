@@ -650,6 +650,9 @@
                         <Button Content="🚗 Rocket League" Command="{Binding CreateFromTemplateCommand}" 
                                 CommandParameter="{Binding AvailableTemplates[6]}"
                                 Style="{StaticResource TemplateButton}"/>
+                        <Button Content="🐔 UCH" Command="{Binding CreateFromTemplateCommand}" 
+                                CommandParameter="{Binding AvailableTemplates[7]}"
+                                Style="{StaticResource TemplateButton}"/>
                     </WrapPanel>
                 </Border>
             </Grid>

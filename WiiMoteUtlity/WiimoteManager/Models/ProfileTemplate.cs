@@ -389,6 +389,56 @@ public class RocketLeagueTemplate : ProfileTemplate
 }
 
 /// <summary>
+/// Ultimate Chicken Horse profile tuned for Wii horizontal play.
+/// </summary>
+public class UCHProfileTemplate : ProfileTemplate
+{
+    public override string Name => "UCH profile";
+    public override string Description => "Ultimate Chicken Horse profile: D-Pad move, 2 jump, 1 sprint, +/- menu, A/B rotate pieces.";
+    public override string IconEmoji => "🐔";
+    public override List<string> Tags => new() { "Ultimate Chicken Horse", "Party", "Platformer", "UCH" };
+    public override List<string> SuggestedGames => new() { "Ultimate Chicken Horse" };
+
+    public override MappingProfile CreateProfile()
+    {
+        var profile = new MappingProfile
+        {
+            Name = Name,
+            Description = Description,
+            IconEmoji = IconEmoji,
+            Tags = new List<string>(Tags),
+            AssociatedGames = new List<string>(SuggestedGames),
+            Author = "System",
+            UseAccelerometer = false
+        };
+
+        // Requested mapping:
+        // DPad move in horizontal Wiimote orientation (90° rotated).
+        profile.DPadUp.WiimoteButton = ButtonState.DPadRight;
+        profile.DPadDown.WiimoteButton = ButtonState.DPadLeft;
+        profile.DPadLeft.WiimoteButton = ButtonState.DPadUp;
+        profile.DPadRight.WiimoteButton = ButtonState.DPadDown;
+
+        profile.A.WiimoteButton = ButtonState.Two;        // Jump
+        profile.X.WiimoteButton = ButtonState.One;        // Run/Sprint
+        profile.Y.WiimoteButton = ButtonState.Minus;      // Dance/Taunt
+        profile.Start.WiimoteButton = ButtonState.Plus;   // Pause
+
+        profile.LeftShoulder.WiimoteButton = ButtonState.A;  // Rotate Left (Build mode)
+        profile.RightShoulder.WiimoteButton = ButtonState.B; // Rotate Right (Build mode)
+
+        // Keep these clear for this game profile.
+        profile.B.WiimoteButton = null;
+        profile.LeftTrigger.WiimoteButton = null;
+        profile.RightTrigger.WiimoteButton = null;
+        profile.Back.WiimoteButton = null;
+        profile.Guide.WiimoteButton = ButtonState.Home;
+
+        return profile;
+    }
+}
+
+/// <summary>
 /// Template manager for easy access to all templates
 /// </summary>
 public static class ProfileTemplates
@@ -401,7 +451,8 @@ public static class ProfileTemplates
         new ShooterTemplate(),
         new SportsTemplate(),
         new PartyGameTemplate(),
-        new RocketLeagueTemplate()
+        new RocketLeagueTemplate(),
+        new UCHProfileTemplate()
     };
     
     public static List<ProfileTemplate> GetAllTemplates() => _templates;

@@ -28,6 +28,7 @@ public class ProfileService
         EnsureDefaultProfile();
         EnsureRacingProfile();
         EnsureRocketLeagueProfile();
+        EnsureUchProfile();
     }
 
     public void EnsureDefaultProfile()
@@ -102,6 +103,49 @@ public class ProfileService
                 profile.Start = configured.Start;
                 profile.Back = configured.Back;
                 profile.Guide = configured.Guide;
+                SaveProfile(profile);
+            }
+        }
+        catch (IOException)
+        {
+            // Another process/test may create or write the profile at the same time.
+        }
+    }
+
+    private void EnsureUchProfile()
+    {
+        var uchTemplate = new UCHProfileTemplate();
+        var uchPath = Path.Combine(_profilesDir, $"{uchTemplate.Name}.json");
+        try
+        {
+            if (!File.Exists(uchPath))
+            {
+                SaveProfile(uchTemplate.CreateProfile());
+            }
+            else
+            {
+                var profile = LoadProfile(uchTemplate.Name);
+                var configured = uchTemplate.CreateProfile();
+                profile.Description = configured.Description;
+                profile.Tags = configured.Tags;
+                profile.AssociatedGames = configured.AssociatedGames;
+                profile.IconEmoji = configured.IconEmoji;
+                profile.UseAccelerometer = configured.UseAccelerometer;
+                profile.A = configured.A;
+                profile.B = configured.B;
+                profile.X = configured.X;
+                profile.Y = configured.Y;
+                profile.LeftShoulder = configured.LeftShoulder;
+                profile.RightShoulder = configured.RightShoulder;
+                profile.LeftTrigger = configured.LeftTrigger;
+                profile.RightTrigger = configured.RightTrigger;
+                profile.Start = configured.Start;
+                profile.Back = configured.Back;
+                profile.Guide = configured.Guide;
+                profile.DPadUp = configured.DPadUp;
+                profile.DPadDown = configured.DPadDown;
+                profile.DPadLeft = configured.DPadLeft;
+                profile.DPadRight = configured.DPadRight;
                 SaveProfile(profile);
             }
         }
