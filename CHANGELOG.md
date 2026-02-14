@@ -1,3 +1,10 @@
+## [1.0.1](https://github.com/Juanipis/WiimoteManagerPro/compare/v1.0.0...v1.0.1) (2026-02-14)
+
+
+### Bug Fixes
+
+* Update repository references to use the correct GitHub username and API URL ([439cfed](https://github.com/Juanipis/WiimoteManagerPro/commit/439cfedb16c9e56ae7ba5bbdfd75260c910f8d97))
+
 # 1.0.0 (2026-02-14)
 
 
