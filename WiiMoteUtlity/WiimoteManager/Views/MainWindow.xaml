@@ -59,7 +59,7 @@
                         </StackPanel>
                     </Button>
                     <Border Background="{StaticResource SurfaceBrush}" CornerRadius="15" Padding="15,5">
-                        <TextBlock Text="v1.0.0" Foreground="White" FontWeight="Bold"/>
+                        <TextBlock Text="{Binding AppVersion}" Foreground="White" FontWeight="Bold"/>
                     </Border>
                 </StackPanel>
             </Grid>
@@ -279,7 +279,7 @@
                     <Run Text="Ready"/>
                 </TextBlock>
                 <StackPanel Orientation="Horizontal" HorizontalAlignment="Right" Margin="20,0">
-                    <TextBlock VerticalAlignment="Center" FontSize="11" Foreground="{StaticResource SecondaryTextBrush}" Text="UCHWiiRemoteMod v1.0.0"/>
+                    <TextBlock VerticalAlignment="Center" FontSize="11" Foreground="{StaticResource SecondaryTextBrush}" Text="{Binding FooterVersionText}"/>
                 </StackPanel>
             </Grid>
         </Border>

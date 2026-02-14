@@ -3,6 +3,7 @@ using CommunityToolkit.Mvvm.Input;
 using WiimoteManager.Models;
 using WiimoteManager.Services;
 using System.Collections.ObjectModel;
+using System.Reflection;
 using System.Windows;
 
 namespace WiimoteManager.ViewModels;
@@ -51,6 +52,10 @@ public partial class MainViewModel : ObservableObject
     /// </summary>
     [ObservableProperty]
     public int discoveredDeviceCount = 0;
+
+    public string AppVersion => $"v{Assembly.GetExecutingAssembly().GetName().Version?.ToString(3) ?? "1.0.0"}";
+
+    public string FooterVersionText => $"WiimoteManagerPro {AppVersion}";
 
     private Window? _mainWindow;
 
