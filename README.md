@@ -1,8 +1,8 @@
 # 🎮 Wiimote Manager Pro
 
 [![License: MIT](https://img.shields.io/badge/License-MIT-green.svg)](LICENSE.md)
-![Build Status](https://github.com/JuanI/UCHWiiRemoteMod/actions/workflows/ci.yml/badge.svg)
-![GitHub release (latest by date)](https://img.shields.io/github/v/release/JuanI/UCHWiiRemoteMod)
+![Build Status](https://github.com/Juanipis/WiimoteManagerPro/actions/workflows/ci.yml/badge.svg)
+![GitHub release (latest by date)](https://img.shields.io/github/v/release/Juanipis/WiimoteManagerPro)
 ![Platform](https://img.shields.io/badge/platform-Windows-blue)
 
 **A professional, production-ready tool to use your Nintendo Wii Remotes as Xbox 360 controllers on Windows.**
@@ -37,7 +37,7 @@
 Third-party "clones" often use non-standard Bluetooth protocols that may fail to connect or report data correctly.
 
 ### Installation
-1. Download the latest release from the [Releases Page](https://github.com/JuanI/UCHWiiRemoteMod/releases).
+1. Download the latest release from the [Releases Page](https://github.com/Juanipis/WiimoteManagerPro/releases).
 2. Extract the ZIP file.
 3. Run `WiimoteManager.exe`.
 
@@ -83,7 +83,7 @@ To build from source:
 
 ```powershell
 # Clone repository
-git clone https://github.com/JuanI/UCHWiiRemoteMod.git
+git clone https://github.com/Juanipis/WiimoteManagerPro.git
 
 # Build solution
 dotnet build WiiMoteUtlity/WiimoteManager.sln

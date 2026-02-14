@@ -11,8 +11,8 @@ namespace WiimoteManager.Services
 {
     public class UpdateService
     {
-        private const string GITHUB_REPO = "JuanI/UCHWiiRemoteMod";
-        private const string GITHUB_API_URL = "https://api.github.com/repos/JuanI/UCHWiiRemoteMod/releases/latest";
+        private const string GITHUB_REPO = "Juanipis/WiimoteManagerPro";
+        private const string GITHUB_API_URL = "https://api.github.com/repos/Juanipis/WiimoteManagerPro/releases/latest";
         
         public async Task CheckForUpdatesAsync()
         {
