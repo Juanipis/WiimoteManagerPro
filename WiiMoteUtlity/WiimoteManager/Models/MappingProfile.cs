@@ -9,13 +9,13 @@ namespace WiimoteManager.Models
     public class AccelerometerMapping
     {
         public bool TiltSteeringEnabled { get; set; } = false;
-        public string TiltAxis { get; set; } = "X"; // X, Y, or Z
-        public float Sensitivity { get; set; } = 1.0f;
-        public float DeadZone { get; set; } = 0.1f;
+        public string TiltAxis { get; set; } = "Auto (X+Y for Joystick)";
+        public float Sensitivity { get; set; } = 2.2f;
+        public float DeadZone { get; set; } = 0.05f;
         public bool InvertAxis { get; set; } = false;
         
         // Which Xbox control to map to
-        public string TargetControl { get; set; } = "LeftStickX"; // LeftStickX, RightStickX, etc.
+        public string TargetControl { get; set; } = "LeftStick (Steering + Pitch)";
     }
 
     /// <summary>
@@ -77,6 +77,8 @@ namespace WiimoteManager.Models
         // Bumpers
         public ControlMapping LeftShoulder { get; set; } = new() { TargetName = "LB" };
         public ControlMapping RightShoulder { get; set; } = new() { TargetName = "RB" };
+        public ControlMapping LeftTrigger { get; set; } = new() { TargetName = "LT" };
+        public ControlMapping RightTrigger { get; set; } = new() { TargetName = "RT" };
         
         // Special
         public ControlMapping Start { get; set; } = new() { TargetName = "Start" };
@@ -97,7 +99,7 @@ namespace WiimoteManager.Models
         public IEnumerable<ControlMapping> AllMappings => new[]
         {
             A, B, X, Y,
-            LeftShoulder, RightShoulder,
+            LeftShoulder, RightShoulder, LeftTrigger, RightTrigger,
             Start, Back, Guide,
             LeftThumb, RightThumb,
             DPadUp, DPadDown, DPadLeft, DPadRight

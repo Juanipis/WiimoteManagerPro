@@ -48,11 +48,11 @@ public class RacingGameTemplate : ProfileTemplate
             AccelMapping = new AccelerometerMapping
             {
                 TiltSteeringEnabled = true,
-                TiltAxis = "X", // Tilt left/right
-                Sensitivity = 1.5f,
-                DeadZone = 0.15f,
+                TiltAxis = "Auto (X+Y for Joystick)", // Dual Axis
+                Sensitivity = 2.2f,
+                DeadZone = 0.05f,
                 InvertAxis = false,
-                TargetControl = "LeftStickX"
+                TargetControl = "LeftStick (Steering + Pitch)"
             }
         };
         
@@ -337,6 +337,58 @@ public class PartyGameTemplate : ProfileTemplate
 }
 
 /// <summary>
+/// Rocket League profile with dedicated button layout and tilt steering.
+/// </summary>
+public class RocketLeagueTemplate : ProfileTemplate
+{
+    public override string Name => "Rocket League (Tilt Pro)";
+    public override string Description => "Rocket League focused profile: 2 accelerate, 1 jump, B boost, A brake, tilt steering.";
+    public override string IconEmoji => "🚗";
+    public override List<string> Tags => new() { "Rocket League", "Racing", "Tilt", "Competitive" };
+    public override List<string> SuggestedGames => new() { "Rocket League" };
+
+    public override MappingProfile CreateProfile()
+    {
+        var profile = new MappingProfile
+        {
+            Name = Name,
+            Description = Description,
+            IconEmoji = IconEmoji,
+            Tags = new List<string>(Tags),
+            AssociatedGames = new List<string>(SuggestedGames),
+            Author = "System",
+            UseAccelerometer = true,
+            AccelMapping = new AccelerometerMapping
+            {
+                TiltSteeringEnabled = true,
+                TiltAxis = "Auto (X+Y for Joystick)",
+                Sensitivity = 1.4f,
+                DeadZone = 0.06f,
+                InvertAxis = false,
+                TargetControl = "LeftStick (Steering + Pitch)"
+            }
+        };
+
+        // Requested layout:
+        // 2 -> Accelerate, 1 -> Jump, B -> Nitro, A -> Brake
+        profile.RightTrigger.WiimoteButton = ButtonState.Two; // Accelerate
+        profile.A.WiimoteButton = ButtonState.One;             // Jump
+        profile.B.WiimoteButton = ButtonState.B;               // Nitro/Boost
+        profile.LeftTrigger.WiimoteButton = ButtonState.A;     // Brake/Reverse
+        profile.X.WiimoteButton = null;
+        profile.Y.WiimoteButton = null;
+        profile.LeftShoulder.WiimoteButton = null;
+        profile.RightShoulder.WiimoteButton = null;
+
+        profile.Start.WiimoteButton = ButtonState.Plus;
+        profile.Back.WiimoteButton = ButtonState.Minus;
+        profile.Guide.WiimoteButton = ButtonState.Home;
+
+        return profile;
+    }
+}
+
+/// <summary>
 /// Template manager for easy access to all templates
 /// </summary>
 public static class ProfileTemplates
@@ -348,7 +400,8 @@ public static class ProfileTemplates
         new FightingGameTemplate(),
         new ShooterTemplate(),
         new SportsTemplate(),
-        new PartyGameTemplate()
+        new PartyGameTemplate(),
+        new RocketLeagueTemplate()
     };
     
     public static List<ProfileTemplate> GetAllTemplates() => _templates;

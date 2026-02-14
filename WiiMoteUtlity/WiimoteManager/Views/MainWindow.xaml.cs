@@ -1,5 +1,7 @@
 using System.Windows;
+using WiimoteManager.Services;
 using WiimoteManager.ViewModels;
+using System.Threading.Tasks;
 
 namespace WiimoteManager;
 
@@ -22,6 +24,9 @@ public partial class MainWindow : Window
             _viewModel.SetWindow(this); // CRITICAL: Pass window for Raw Input
             DataContext = _viewModel;
             await _viewModel.InitializeAsync();
+            
+            // Check for updates asynchronously (non-blocking)
+            _ = CheckForUpdatesAsync();
         }
         catch (Exception ex)
         {
@@ -30,8 +35,21 @@ public partial class MainWindow : Window
         }
     }
 
+    private async Task CheckForUpdatesAsync()
+    {
+        try
+        {
+            var updateService = new UpdateService();
+            await updateService.CheckForUpdatesAsync();
+        }
+        catch
+        {
+            // Silently fail - update checking is non-critical
+        }
+    }
+
     private void MainWindow_Closing(object? sender, System.ComponentModel.CancelEventArgs e)
     {
-        _viewModel?.Dispose();
+        _viewModel?.Dispose(); // MainViewModel has Dispose method now
     }
 }

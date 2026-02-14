@@ -9,12 +9,15 @@
     <UseWPF>true</UseWPF>
     
     <!-- Package Information -->
-    <Version>1.0.0</Version>
+    <Version>1.1.0-rc1</Version>
     <Authors>JuanI</Authors>
     <Company>UCHWiiRemoteMod</Company>
     <Product>Wiimote Manager Pro</Product>
     <Description>Professional Nintendo Wiimote management tool with Xbox 360 emulation.</Description>
     <Copyright>Copyright © 2026</Copyright>
+    
+    <!-- Application Icon -->
+    <!-- <ApplicationIcon>app.ico</ApplicationIcon> -->
   </PropertyGroup>
 
   <ItemGroup>

@@ -111,6 +111,8 @@ public class VirtualControllerService : IDisposable
             
             if (IsPressed(profile.LeftShoulder, buttons)) controller.SetButtonState(Xbox360Button.LeftShoulder, true);
             if (IsPressed(profile.RightShoulder, buttons)) controller.SetButtonState(Xbox360Button.RightShoulder, true);
+            if (IsPressed(profile.LeftTrigger, buttons)) controller.SetSliderValue(Xbox360Slider.LeftTrigger, 255);
+            if (IsPressed(profile.RightTrigger, buttons)) controller.SetSliderValue(Xbox360Slider.RightTrigger, 255);
             
             if (IsPressed(profile.Start, buttons)) controller.SetButtonState(Xbox360Button.Start, true);
             if (IsPressed(profile.Back, buttons)) controller.SetButtonState(Xbox360Button.Back, true);
@@ -120,6 +122,107 @@ public class VirtualControllerService : IDisposable
             if (IsPressed(profile.DPadDown, buttons)) controller.SetButtonState(Xbox360Button.Down, true);
             if (IsPressed(profile.DPadLeft, buttons)) controller.SetButtonState(Xbox360Button.Left, true);
             if (IsPressed(profile.DPadRight, buttons)) controller.SetButtonState(Xbox360Button.Right, true);
+
+            // Accelerometer Mapping
+            if (profile.UseAccelerometer && profile.AccelMapping != null)
+            {
+                // Rocket League / Racing Mode logic (Horizontal Hold)
+                // Tilt Left/Right (Steering) -> Accel Y
+                // Tilt Up/Down -> Accel Z (centered around 0)
+                
+                // Convert acceleration to tilt-angle-based values (more stable than raw accel).
+                // For your orientation:
+                // - Left tilt:  AccelY positive
+                // - Right tilt: AccelY negative
+                // - Front tilt: AccelX positive
+                // - Back tilt:  AccelX negative
+                const float expectedTiltMax = 0.20f;
+                float steeringValue = Math.Clamp(model.AccelY / expectedTiltMax, -1.0f, 1.0f);
+                float pitchValue = Math.Clamp(model.AccelZ / expectedTiltMax, -1.0f, 1.0f);
+
+                // Apply Sensitivity
+                steeringValue *= profile.AccelMapping.Sensitivity;
+                pitchValue *= profile.AccelMapping.Sensitivity;
+
+                // Apply Deadzone
+                if (Math.Abs(steeringValue) < profile.AccelMapping.DeadZone) steeringValue = 0f;
+                if (Math.Abs(pitchValue) < profile.AccelMapping.DeadZone) pitchValue = 0f;
+
+                // Clamp after sensitivity/deadzone
+                steeringValue = Math.Clamp(steeringValue, -1.0f, 1.0f);
+                pitchValue = Math.Clamp(pitchValue, -1.0f, 1.0f);
+
+                // Smooth response: softer near center, still reaches full deflection at limits.
+                steeringValue = MathF.Sign(steeringValue) * MathF.Pow(MathF.Abs(steeringValue), 1.8f);
+                pitchValue = MathF.Sign(pitchValue) * MathF.Pow(MathF.Abs(pitchValue), 1.8f);
+
+                if (profile.AccelMapping.InvertAxis)
+                {
+                    steeringValue = -steeringValue;
+                    pitchValue = -pitchValue;
+                }
+
+                // Map to Left Stick (Standard for movement/steering)
+                // "LeftStick (Steering + Pitch)" is the display string, but binding might just set the string directly.
+                // We should check if it starts with "LeftStick (" or is just "LeftStick"
+                if (profile.AccelMapping.TargetControl.StartsWith("LeftStick"))
+                {
+                    // Full Joystick Mode (Steering + Pitch)
+                    if (profile.AccelMapping.TargetControl.Contains("Steering + Pitch"))
+                    {
+                        controller.SetAxisValue(Xbox360Axis.LeftThumbX, (short)(-steeringValue * 32767));
+                        controller.SetAxisValue(Xbox360Axis.LeftThumbY, (short)(pitchValue * 32767));
+                    }
+                    else
+                    {
+                        // Single-axis LeftStick modes
+                        if (profile.AccelMapping.TargetControl.StartsWith("LeftStickX"))
+                        {
+                            controller.SetAxisValue(Xbox360Axis.LeftThumbX, (short)(-steeringValue * 32767));
+                        }
+                        else if (profile.AccelMapping.TargetControl.StartsWith("LeftStickY"))
+                        {
+                            controller.SetAxisValue(Xbox360Axis.LeftThumbY, (short)(pitchValue * 32767));
+                        }
+                    }
+                }
+                else
+                {
+                    // Generic single-axis fallback for RightStick and triggers
+                    float rawValue = 0f;
+                    string axis = profile.AccelMapping.TiltAxis;
+                    if (axis == null || axis.StartsWith("Auto")) axis = "X";
+
+                    switch (axis.Substring(0, 1).ToUpper())
+                    {
+                        case "X": rawValue = model.AccelX; break;
+                        case "Y": rawValue = model.AccelY; break;
+                        case "Z": rawValue = model.AccelZ; break;
+                        default: rawValue = model.AccelX; break;
+                    }
+
+                    if (Math.Abs(rawValue) < profile.AccelMapping.DeadZone) rawValue = 0f;
+                    rawValue = Math.Clamp(rawValue * profile.AccelMapping.Sensitivity, -1.0f, 1.0f);
+                    if (profile.AccelMapping.InvertAxis) rawValue = -rawValue;
+
+                    string target = profile.AccelMapping.TargetControl.Split(' ')[0];
+                    switch (target)
+                    {
+                        case "RightStickX":
+                            controller.SetAxisValue(Xbox360Axis.RightThumbX, (short)(rawValue * 32767));
+                            break;
+                        case "RightStickY":
+                            controller.SetAxisValue(Xbox360Axis.RightThumbY, (short)(rawValue * 32767));
+                            break;
+                        case "LeftTrigger":
+                            controller.SetSliderValue(Xbox360Slider.LeftTrigger, (byte)(Math.Max(0, rawValue) * 255));
+                            break;
+                        case "RightTrigger":
+                            controller.SetSliderValue(Xbox360Slider.RightTrigger, (byte)(Math.Max(0, rawValue) * 255));
+                            break;
+                    }
+                }
+            }
 
             // Submit Report
             controller.SubmitReport();

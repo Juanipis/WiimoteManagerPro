@@ -304,9 +304,25 @@ public class ProfileManagementTests : IDisposable
         Assert.True(profile.UseAccelerometer);
         Assert.NotNull(profile.AccelMapping);
         Assert.True(profile.AccelMapping.TiltSteeringEnabled);
-        Assert.Equal("LeftStickX", profile.AccelMapping.TargetControl);
-        Assert.Equal("X", profile.AccelMapping.TiltAxis);
+        Assert.Equal("LeftStick (Steering + Pitch)", profile.AccelMapping.TargetControl);
+        Assert.Equal("Auto (X+Y for Joystick)", profile.AccelMapping.TiltAxis);
         Assert.Contains("🏎️", profile.IconEmoji);
+    }
+
+    [Fact]
+    public void RocketLeagueTemplate_ShouldUseRequestedLayout()
+    {
+        // Arrange & Act
+        var template = new RocketLeagueTemplate();
+        var profile = template.CreateProfile();
+
+        // Assert
+        Assert.True(profile.UseAccelerometer);
+        Assert.Equal("LeftStick (Steering + Pitch)", profile.AccelMapping.TargetControl);
+        Assert.Equal(ButtonState.Two, profile.RightTrigger.WiimoteButton); // 2 accelerate
+        Assert.Equal(ButtonState.One, profile.A.WiimoteButton);            // 1 jump
+        Assert.Equal(ButtonState.B, profile.B.WiimoteButton);              // B nitro
+        Assert.Equal(ButtonState.A, profile.LeftTrigger.WiimoteButton);    // A brake
     }
     
     [Fact]
@@ -322,6 +338,7 @@ public class ProfileManagementTests : IDisposable
         Assert.Contains(templates, t => t is FightingGameTemplate);
         Assert.Contains(templates, t => t is ShooterTemplate);
         Assert.Contains(templates, t => t is SportsTemplate);
+        Assert.Contains(templates, t => t is RocketLeagueTemplate);
     }
     
     [Fact]

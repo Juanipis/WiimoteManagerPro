@@ -126,8 +126,12 @@ public partial class WiimoteViewModel : ObservableObject, IDisposable
 
         RefreshProfiles();
         
-        // Load default or first available
-        if (ProfileNames.Contains("Default"))
+        // Prefer racing profile for tilt-based gameplay when available.
+        if (ProfileNames.Contains("Rocket League (Tilt Pro)"))
+            SelectedProfileName = "Rocket League (Tilt Pro)";
+        else if (ProfileNames.Contains("Racing Game (Tilt Steering)"))
+            SelectedProfileName = "Racing Game (Tilt Steering)";
+        else if (ProfileNames.Contains("Default"))
             SelectedProfileName = "Default";
         else if (ProfileNames.Count > 0)
             SelectedProfileName = ProfileNames[0];
@@ -139,7 +143,10 @@ public partial class WiimoteViewModel : ObservableObject, IDisposable
         Device.PropertyChanged += (s, e) =>
         {
             // 1. FAST PATH: Update Virtual Controller (Background Thread)
-            if (e.PropertyName == nameof(WiimoteDevice.CurrentButtonState) && IsEmulationEnabled)
+            if ((e.PropertyName == nameof(WiimoteDevice.CurrentButtonState) ||
+                 e.PropertyName == nameof(WiimoteDevice.AccelX) ||
+                 e.PropertyName == nameof(WiimoteDevice.AccelY) ||
+                 e.PropertyName == nameof(WiimoteDevice.AccelZ)) && IsEmulationEnabled)
             {
                 try
                 {
@@ -180,6 +187,8 @@ public partial class WiimoteViewModel : ObservableObject, IDisposable
         
         if (ProfileNames.Contains(current))
             SelectedProfileName = current;
+        else if (ProfileNames.Contains("Rocket League (Tilt Pro)"))
+            SelectedProfileName = "Rocket League (Tilt Pro)";
         else if (ProfileNames.Contains("Default"))
             SelectedProfileName = "Default";
     }

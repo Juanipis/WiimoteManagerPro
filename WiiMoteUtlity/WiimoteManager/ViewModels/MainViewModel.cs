@@ -197,6 +197,17 @@ public partial class MainViewModel : ObservableObject
     }
 
     /// <summary>
+    /// Opens the Welcome/Help window.
+    /// </summary>
+    [RelayCommand]
+    public void OpenHelp()
+    {
+        var helpWindow = new Views.WelcomeWindow();
+        helpWindow.Owner = Application.Current.MainWindow;
+        helpWindow.ShowDialog();
+    }
+
+    /// <summary>
     /// Handles Wiimote connection event.
     /// </summary>
     private void OnWiimoteConnected(object? sender, WiimoteDevice device)

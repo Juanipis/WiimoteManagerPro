@@ -46,15 +46,27 @@
                     </TextBlock>
                 </StackPanel>
                 
-                <!-- Version Badge -->
-                <Border Grid.Column="1" Background="#333333" CornerRadius="15" Padding="15,5" VerticalAlignment="Center" Margin="20,0,0,0">
-                    <TextBlock Text="v1.0.0" Foreground="White" FontWeight="Bold"/>
-                </Border>
+                <!-- Version Badge & Help -->
+                <StackPanel Grid.Column="1" Orientation="Horizontal" VerticalAlignment="Center" Margin="20,0,0,0">
+                    <Button Command="{Binding OpenHelpCommand}" 
+                            Style="{StaticResource SecondaryButton}" 
+                            Padding="15,5" 
+                            Margin="0,0,10,0"
+                            ToolTip="Open Help &amp; Connection Guide">
+                        <StackPanel Orientation="Horizontal">
+                            <TextBlock Text="❓" Margin="0,0,5,0"/>
+                            <TextBlock Text="Help"/>
+                        </StackPanel>
+                    </Button>
+                    <Border Background="{StaticResource SurfaceBrush}" CornerRadius="15" Padding="15,5">
+                        <TextBlock Text="v1.0.0" Foreground="White" FontWeight="Bold"/>
+                    </Border>
+                </StackPanel>
             </Grid>
         </Border>
 
         <!-- Control Panel -->
-        <Border Grid.Row="1" Background="{StaticResource CardBackgroundBrush}" BorderBrush="#333333" BorderThickness="0,0,0,1" Padding="0,15">
+        <Border Grid.Row="1" Background="{StaticResource CardBackgroundBrush}" BorderBrush="{StaticResource ButtonBorderBrush}" BorderThickness="0,0,0,1" Padding="0,15">
             <Grid Margin="30,0" VerticalAlignment="Center">
                 <Grid.ColumnDefinitions>
                     <ColumnDefinition Width="Auto"/>
@@ -139,7 +151,7 @@
 
                 <!-- Status Indicators -->
                 <StackPanel Grid.Column="1" Orientation="Horizontal" HorizontalAlignment="Right" VerticalAlignment="Center">
-                    <Border Background="#252525" CornerRadius="8" Padding="15,8" Margin="0,0,15,0">
+                    <Border Background="{StaticResource SurfaceBrush}" CornerRadius="8" Padding="15,8" Margin="0,0,15,0">
                         <StackPanel Orientation="Horizontal">
                             <Ellipse Width="10" Height="10" Fill="{StaticResource AccentBrush}" Margin="0,0,10,0"/>
                             <TextBlock Text="Connected: " Foreground="{StaticResource SecondaryTextBrush}"/>
@@ -147,7 +159,7 @@
                         </StackPanel>
                     </Border>
                     
-                    <Border Background="#252525" CornerRadius="8" Padding="15,8">
+                    <Border Background="{StaticResource SurfaceBrush}" CornerRadius="8" Padding="15,8">
                         <StackPanel Orientation="Horizontal">
                             <Ellipse Width="10" Height="10" Fill="{StaticResource WarningBrush}" Margin="0,0,10,0"/>
                             <TextBlock Text="Discovered: " Foreground="{StaticResource SecondaryTextBrush}"/>
@@ -210,19 +222,23 @@
                     <Border Background="{StaticResource CardBackgroundBrush}" CornerRadius="8" Margin="0,20,0,0" Padding="20">
                         <StackPanel>
                             <TextBlock FontSize="14" Foreground="{StaticResource SecondaryTextBrush}" TextAlignment="Left" LineHeight="24">
-                                <Run FontWeight="Bold" Foreground="{StaticResource TextBrush}">Quick Connect Guide:</Run><LineBreak/>
-                                1. Open <Run Foreground="White">Bluetooth Settings</Run> in Windows<LineBreak/>
-                                2. Press the red <Run Foreground="#FF4444" FontWeight="Bold">SYNC</Run> button on your Wiimote<LineBreak/>
+                                <Run FontWeight="Bold" Foreground="{StaticResource TextBrush}">Quick Connect (Windows 11):</Run><LineBreak/>
+                                1. Open <Run Foreground="White">Win+R</Run>, type <Run Foreground="Cyan">devicepairingwizard</Run><LineBreak/>
+                                2. Press red <Run Foreground="#FF4444" FontWeight="Bold">SYNC</Run> button on Wiimote<LineBreak/>
                                 3. Pair with <Run Foreground="White">Nintendo RVL-CNT-01</Run> (No PIN)<LineBreak/>
-                                4. Click the <Run Foreground="{StaticResource AccentBrush}" FontWeight="Bold">Connect</Run> button above
+                                4. Click <Run Foreground="{StaticResource AccentBrush}" FontWeight="Bold">Connect</Run> above<LineBreak/><LineBreak/>
+                                <Run FontWeight="Bold" Foreground="#FFB900">⚠️ IMPORTANT:</Run> Use original Nintendo Wiimotes.<LineBreak/>
+                                Third-party clones often fail to pair.
                             </TextBlock>
+                            <Button Content="Show Full Guide" Command="{Binding OpenHelpCommand}" 
+                                    Style="{StaticResource SecondaryButton}" HorizontalAlignment="Center" Margin="0,15,0,0"/>
                         </StackPanel>
                     </Border>
                 </StackPanel>
             </Grid>
 
             <!-- Right Panel: Log/Info -->
-            <Border Grid.Column="1" Background="{StaticResource CardBackgroundBrush}" Margin="10" CornerRadius="12" BorderBrush="#333333" BorderThickness="1">
+            <Border Grid.Column="1" Background="{StaticResource CardBackgroundBrush}" Margin="10" CornerRadius="12" BorderBrush="{StaticResource ButtonBorderBrush}" BorderThickness="1">
                 <Grid>
                     <Grid.RowDefinitions>
                         <RowDefinition Height="Auto" MinHeight="40"/>
@@ -230,7 +246,7 @@
                     </Grid.RowDefinitions>
 
                     <!-- Log Tab Header -->
-                    <Border Grid.Row="0" Background="#252525" CornerRadius="12,12,0,0" BorderBrush="#333333" BorderThickness="0,0,0,1">
+                    <Border Grid.Row="0" Background="{StaticResource SurfaceBrush}" CornerRadius="12,12,0,0" BorderBrush="{StaticResource ButtonBorderBrush}" BorderThickness="0,0,0,1">
                         <DockPanel LastChildFill="False">
                             <TextBlock Margin="15,12" FontSize="13" FontWeight="Bold" Foreground="{StaticResource AccentBrush}" VerticalAlignment="Center">
                                 <Run Text="📝 System Log"/>
@@ -257,13 +273,13 @@
         </Grid>
 
         <!-- Footer -->
-        <Border Grid.Row="3" Background="#151515" BorderBrush="#333333" BorderThickness="0,1,0,0">
+        <Border Grid.Row="3" Background="{StaticResource HeaderBackgroundBrush}" BorderBrush="{StaticResource ButtonBorderBrush}" BorderThickness="0,1,0,0">
             <Grid>
-                <TextBlock Margin="20,12" VerticalAlignment="Center" FontSize="11" Foreground="#666666">
+                <TextBlock Margin="20,12" VerticalAlignment="Center" FontSize="11" Foreground="{StaticResource SecondaryTextBrush}">
                     <Run Text="Ready"/>
                 </TextBlock>
                 <StackPanel Orientation="Horizontal" HorizontalAlignment="Right" Margin="20,0">
-                    <TextBlock VerticalAlignment="Center" FontSize="11" Foreground="#444444" Text="UCHWiiRemoteMod v1.0.0"/>
+                    <TextBlock VerticalAlignment="Center" FontSize="11" Foreground="{StaticResource SecondaryTextBrush}" Text="UCHWiiRemoteMod v1.0.0"/>
                 </StackPanel>
             </Grid>
         </Border>
