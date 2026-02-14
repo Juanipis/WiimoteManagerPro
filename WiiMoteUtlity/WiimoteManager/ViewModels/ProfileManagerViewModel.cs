@@ -14,6 +14,12 @@ namespace WiimoteManager.ViewModels;
 public partial class ProfileManagerViewModel : ObservableObject
 {
     private readonly ProfileService _profileService;
+    private static readonly HashSet<string> ProtectedProfileNames = new(StringComparer.OrdinalIgnoreCase)
+    {
+        "Default",
+        "Racing Game (Tilt Steering)",
+        "Rocket League (Tilt Pro)"
+    };
     
     [ObservableProperty]
     private ObservableCollection<MappingProfile> _profiles = new();
@@ -29,13 +35,18 @@ public partial class ProfileManagerViewModel : ObservableObject
     
     [ObservableProperty]
     private bool _showFavoritesOnly = false;
+
+    [ObservableProperty]
+    private bool _isSelectedProfileProtected = false;
     
     public ObservableCollection<ProfileTemplate> AvailableTemplates { get; }
+    public ObservableCollection<ButtonState> AvailableWiimoteButtons { get; }
     
     public ProfileManagerViewModel(ProfileService profileService)
     {
         _profileService = profileService;
         AvailableTemplates = new ObservableCollection<ProfileTemplate>(ProfileTemplates.GetAllTemplates());
+        AvailableWiimoteButtons = new ObservableCollection<ButtonState>(Enum.GetValues<ButtonState>());
         RefreshProfiles();
     }
     
@@ -52,6 +63,11 @@ public partial class ProfileManagerViewModel : ObservableObject
     partial void OnShowFavoritesOnlyChanged(bool value)
     {
         FilterProfiles();
+    }
+
+    partial void OnSelectedProfileChanged(MappingProfile? value)
+    {
+        IsSelectedProfileProtected = value != null && ProtectedProfileNames.Contains(value.Name);
     }
     
     [RelayCommand]
@@ -133,9 +149,9 @@ public partial class ProfileManagerViewModel : ObservableObject
     {
         if (SelectedProfile == null) return;
         
-        if (SelectedProfile.Name == "Default")
+        if (IsSelectedProfileProtected)
         {
-            MessageBox.Show("Cannot delete the Default profile.", "Error", MessageBoxButton.OK, MessageBoxImage.Error);
+            MessageBox.Show("Default system profiles cannot be deleted.", "Error", MessageBoxButton.OK, MessageBoxImage.Error);
             return;
         }
         
@@ -158,6 +174,11 @@ public partial class ProfileManagerViewModel : ObservableObject
     public void Save()
     {
         if (SelectedProfile == null) return;
+        if (IsSelectedProfileProtected)
+        {
+            MessageBox.Show("Default system profiles are read-only. Duplicate one to customize it.", "Info", MessageBoxButton.OK, MessageBoxImage.Information);
+            return;
+        }
         
         try
         {
@@ -174,6 +195,7 @@ public partial class ProfileManagerViewModel : ObservableObject
     public void ToggleFavorite()
     {
         if (SelectedProfile == null) return;
+        if (IsSelectedProfileProtected) return;
         
         SelectedProfile.IsFavorite = !SelectedProfile.IsFavorite;
         _profileService.SaveProfile(SelectedProfile);

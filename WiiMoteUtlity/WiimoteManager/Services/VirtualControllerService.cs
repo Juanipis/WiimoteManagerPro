@@ -103,16 +103,30 @@ public class VirtualControllerService : IDisposable
                  Console.WriteLine($"[VIGEM] Update {deviceKey} -> Buttons: {model.CurrentButtonState}");
             }
 
+            var isRocketLeagueProfile = profile.Name.Equals("Rocket League (Tilt Pro)", StringComparison.OrdinalIgnoreCase);
+
             // Map Buttons
-            if (IsPressed(profile.A, buttons)) controller.SetButtonState(Xbox360Button.A, true);
-            if (IsPressed(profile.B, buttons)) controller.SetButtonState(Xbox360Button.B, true);
-            if (IsPressed(profile.X, buttons)) controller.SetButtonState(Xbox360Button.X, true);
-            if (IsPressed(profile.Y, buttons)) controller.SetButtonState(Xbox360Button.Y, true);
-            
-            if (IsPressed(profile.LeftShoulder, buttons)) controller.SetButtonState(Xbox360Button.LeftShoulder, true);
-            if (IsPressed(profile.RightShoulder, buttons)) controller.SetButtonState(Xbox360Button.RightShoulder, true);
-            if (IsPressed(profile.LeftTrigger, buttons)) controller.SetSliderValue(Xbox360Slider.LeftTrigger, 255);
-            if (IsPressed(profile.RightTrigger, buttons)) controller.SetSliderValue(Xbox360Slider.RightTrigger, 255);
+            if (isRocketLeagueProfile)
+            {
+                // Hard-locked bindings requested by user:
+                // Wiimote 1 -> A (Jump), B -> B (Boost), A -> LT (Brake), 2 -> RT (Accelerate)
+                if ((buttons & ButtonState.One) != 0) controller.SetButtonState(Xbox360Button.A, true);
+                if ((buttons & ButtonState.B) != 0) controller.SetButtonState(Xbox360Button.B, true);
+                if ((buttons & ButtonState.A) != 0) controller.SetSliderValue(Xbox360Slider.LeftTrigger, 255);
+                if ((buttons & ButtonState.Two) != 0) controller.SetSliderValue(Xbox360Slider.RightTrigger, 255);
+            }
+            else
+            {
+                if (IsPressed(profile.A, buttons)) controller.SetButtonState(Xbox360Button.A, true);
+                if (IsPressed(profile.B, buttons)) controller.SetButtonState(Xbox360Button.B, true);
+                if (IsPressed(profile.X, buttons)) controller.SetButtonState(Xbox360Button.X, true);
+                if (IsPressed(profile.Y, buttons)) controller.SetButtonState(Xbox360Button.Y, true);
+                
+                if (IsPressed(profile.LeftShoulder, buttons)) controller.SetButtonState(Xbox360Button.LeftShoulder, true);
+                if (IsPressed(profile.RightShoulder, buttons)) controller.SetButtonState(Xbox360Button.RightShoulder, true);
+                if (IsPressed(profile.LeftTrigger, buttons)) controller.SetSliderValue(Xbox360Slider.LeftTrigger, 255);
+                if (IsPressed(profile.RightTrigger, buttons)) controller.SetSliderValue(Xbox360Slider.RightTrigger, 255);
+            }
             
             if (IsPressed(profile.Start, buttons)) controller.SetButtonState(Xbox360Button.Start, true);
             if (IsPressed(profile.Back, buttons)) controller.SetButtonState(Xbox360Button.Back, true);

@@ -76,29 +76,26 @@ public class ProfileService
             else
             {
                 var profile = LoadProfile(rocketTemplate.Name);
-                if (profile.Author == "System")
-                {
-                    // Keep the default Rocket League profile aligned with intended baseline.
-                    var configured = rocketTemplate.CreateProfile();
-                    profile.Description = configured.Description;
-                    profile.Tags = configured.Tags;
-                    profile.AssociatedGames = configured.AssociatedGames;
-                    profile.IconEmoji = configured.IconEmoji;
-                    profile.UseAccelerometer = true;
-                    profile.AccelMapping = configured.AccelMapping;
-                    profile.A = configured.A;
-                    profile.B = configured.B;
-                    profile.X = configured.X;
-                    profile.Y = configured.Y;
-                    profile.LeftShoulder = configured.LeftShoulder;
-                    profile.RightShoulder = configured.RightShoulder;
-                    profile.LeftTrigger = configured.LeftTrigger;
-                    profile.RightTrigger = configured.RightTrigger;
-                    profile.Start = configured.Start;
-                    profile.Back = configured.Back;
-                    profile.Guide = configured.Guide;
-                    SaveProfile(profile);
-                }
+                // Always keep Rocket League profile aligned with required baseline mapping.
+                var configured = rocketTemplate.CreateProfile();
+                profile.Description = configured.Description;
+                profile.Tags = configured.Tags;
+                profile.AssociatedGames = configured.AssociatedGames;
+                profile.IconEmoji = configured.IconEmoji;
+                profile.UseAccelerometer = true;
+                profile.AccelMapping = configured.AccelMapping;
+                profile.A = configured.A;
+                profile.B = configured.B;
+                profile.X = configured.X;
+                profile.Y = configured.Y;
+                profile.LeftShoulder = configured.LeftShoulder;
+                profile.RightShoulder = configured.RightShoulder;
+                profile.LeftTrigger = configured.LeftTrigger;
+                profile.RightTrigger = configured.RightTrigger;
+                profile.Start = configured.Start;
+                profile.Back = configured.Back;
+                profile.Guide = configured.Guide;
+                SaveProfile(profile);
             }
         }
         catch (IOException)

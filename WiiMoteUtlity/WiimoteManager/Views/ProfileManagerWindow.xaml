@@ -431,7 +431,7 @@
                             <StackPanel DataContext="{Binding SelectedProfile}">
                                 <TextBlock Text="Profile Details" FontSize="20" FontWeight="Bold" Foreground="White" Margin="0,0,0,25"/>
                                 
-                                <Grid>
+                                <Grid IsEnabled="{Binding DataContext.IsSelectedProfileProtected, RelativeSource={RelativeSource AncestorType=Window}, Converter={StaticResource InverseBoolConverter}}">
                                     <Grid.ColumnDefinitions>
                                         <ColumnDefinition Width="130"/>
                                         <ColumnDefinition Width="*"/>
@@ -445,38 +445,82 @@
                                         <RowDefinition Height="Auto"/>
                                         <RowDefinition Height="Auto"/>
                                         <RowDefinition Height="Auto"/>
+                                        <RowDefinition Height="Auto"/>
                                     </Grid.RowDefinitions>
-                                    
+
+                                    <TextBlock Grid.Row="0" Grid.ColumnSpan="2"
+                                               Text="🔒 System default profiles are read-only. Duplicate to customize."
+                                               Foreground="{StaticResource WarningBrush}"
+                                               Margin="0,0,0,15"
+                                               Visibility="{Binding DataContext.IsSelectedProfileProtected, RelativeSource={RelativeSource AncestorType=Window}, Converter={StaticResource BoolToVisConverter}}"/>
+                                     
                                     <!-- Name -->
-                                    <TextBlock Grid.Row="0" Grid.Column="0" Text="Name" Foreground="{StaticResource SecondaryTextBrush}" Margin="0,0,15,15" VerticalAlignment="Center" FontSize="14"/>
-                                    <TextBox Grid.Row="0" Grid.Column="1" Text="{Binding Name, UpdateSourceTrigger=PropertyChanged}" 
-                                             Style="{StaticResource SearchBox}" Margin="0,0,0,15"/>
-                                    
+                                    <TextBlock Grid.Row="1" Grid.Column="0" Text="Name" Foreground="{StaticResource SecondaryTextBrush}" Margin="0,0,15,15" VerticalAlignment="Center" FontSize="14"/>
+                                    <TextBox Grid.Row="1" Grid.Column="1" Text="{Binding Name, UpdateSourceTrigger=PropertyChanged}" 
+                                              Style="{StaticResource SearchBox}" Margin="0,0,0,15"/>
+                                     
                                     <!-- Icon -->
-                                    <TextBlock Grid.Row="1" Grid.Column="0" Text="Icon" Foreground="{StaticResource SecondaryTextBrush}" Margin="0,0,15,15" VerticalAlignment="Center" FontSize="14"/>
-                                    <TextBox Grid.Row="1" Grid.Column="1" Text="{Binding IconEmoji, UpdateSourceTrigger=PropertyChanged}" 
-                                             Style="{StaticResource SearchBox}" Margin="0,0,0,15"/>
-                                    
+                                    <TextBlock Grid.Row="2" Grid.Column="0" Text="Icon" Foreground="{StaticResource SecondaryTextBrush}" Margin="0,0,15,15" VerticalAlignment="Center" FontSize="14"/>
+                                    <TextBox Grid.Row="2" Grid.Column="1" Text="{Binding IconEmoji, UpdateSourceTrigger=PropertyChanged}" 
+                                              Style="{StaticResource SearchBox}" Margin="0,0,0,15"/>
+                                     
                                     <!-- Description -->
-                                    <TextBlock Grid.Row="2" Grid.Column="0" Text="Description" Foreground="{StaticResource SecondaryTextBrush}" Margin="0,0,15,15" VerticalAlignment="Top" Padding="0,12,0,0" FontSize="14"/>
-                                    <TextBox Grid.Row="2" Grid.Column="1" Text="{Binding Description, UpdateSourceTrigger=PropertyChanged}" 
-                                             Style="{StaticResource SearchBox}"
-                                             AcceptsReturn="True" TextWrapping="Wrap" Height="80" Margin="0,0,0,15"/>
-                                    
+                                    <TextBlock Grid.Row="3" Grid.Column="0" Text="Description" Foreground="{StaticResource SecondaryTextBrush}" Margin="0,0,15,15" VerticalAlignment="Top" Padding="0,12,0,0" FontSize="14"/>
+                                    <TextBox Grid.Row="3" Grid.Column="1" Text="{Binding Description, UpdateSourceTrigger=PropertyChanged}" 
+                                              Style="{StaticResource SearchBox}"
+                                              AcceptsReturn="True" TextWrapping="Wrap" Height="80" Margin="0,0,0,15"/>
+                                     
                                     <!-- Tags -->
-                                    <TextBlock Grid.Row="3" Grid.Column="0" Text="Tags" Foreground="{StaticResource SecondaryTextBrush}" Margin="0,0,15,15" VerticalAlignment="Center" FontSize="14"/>
-                                    <TextBox Grid.Row="3" Grid.Column="1" Text="{Binding Tags, Converter={StaticResource ListToStringConverter}, UpdateSourceTrigger=PropertyChanged}" 
-                                             Style="{StaticResource SearchBox}" Margin="0,0,0,15"/>
-                                    
+                                    <TextBlock Grid.Row="4" Grid.Column="0" Text="Tags" Foreground="{StaticResource SecondaryTextBrush}" Margin="0,0,15,15" VerticalAlignment="Center" FontSize="14"/>
+                                    <TextBox Grid.Row="4" Grid.Column="1" Text="{Binding Tags, Converter={StaticResource ListToStringConverter}, UpdateSourceTrigger=PropertyChanged}" 
+                                              Style="{StaticResource SearchBox}" Margin="0,0,0,15"/>
+                                     
                                     <!-- Associated Games -->
-                                    <TextBlock Grid.Row="4" Grid.Column="0" Text="Games" Foreground="{StaticResource SecondaryTextBrush}" Margin="0,0,15,15" VerticalAlignment="Top" Padding="0,12,0,0" FontSize="14"/>
-                                    <TextBox Grid.Row="4" Grid.Column="1" Text="{Binding AssociatedGames, Converter={StaticResource ListToStringConverter}, UpdateSourceTrigger=PropertyChanged}" 
-                                             Style="{StaticResource SearchBox}"
-                                             AcceptsReturn="True" TextWrapping="Wrap" Height="70" Margin="0,0,0,15"/>
-                                    
+                                    <TextBlock Grid.Row="5" Grid.Column="0" Text="Games" Foreground="{StaticResource SecondaryTextBrush}" Margin="0,0,15,15" VerticalAlignment="Top" Padding="0,12,0,0" FontSize="14"/>
+                                    <TextBox Grid.Row="5" Grid.Column="1" Text="{Binding AssociatedGames, Converter={StaticResource ListToStringConverter}, UpdateSourceTrigger=PropertyChanged}" 
+                                              Style="{StaticResource SearchBox}"
+                                              AcceptsReturn="True" TextWrapping="Wrap" Height="70" Margin="0,0,0,15"/>
+
+                                    <!-- Button Mapping -->
+                                    <TextBlock Grid.Row="6" Grid.Column="0" Text="Button Mapping" Foreground="{StaticResource SecondaryTextBrush}" Margin="0,0,15,25" VerticalAlignment="Top" Padding="0,8,0,0" FontSize="14"/>
+                                    <Border Grid.Row="6" Grid.Column="1" Background="{StaticResource InputBackgroundBrush}" CornerRadius="8" Padding="15" Margin="0,0,0,25">
+                                        <Grid>
+                                            <Grid.ColumnDefinitions>
+                                                <ColumnDefinition Width="*"/>
+                                                <ColumnDefinition Width="*"/>
+                                            </Grid.ColumnDefinitions>
+                                            <Grid.RowDefinitions>
+                                                <RowDefinition Height="Auto"/>
+                                                <RowDefinition Height="Auto"/>
+                                                <RowDefinition Height="Auto"/>
+                                                <RowDefinition Height="Auto"/>
+                                            </Grid.RowDefinitions>
+
+                                            <TextBlock Grid.Row="0" Grid.Column="0" Text="A (Jump/Action)" Foreground="{StaticResource SecondaryTextBrush}" Margin="0,0,8,5"/>
+                                            <ComboBox Grid.Row="0" Grid.Column="1" Margin="0,0,0,8"
+                                                      ItemsSource="{Binding DataContext.AvailableWiimoteButtons, RelativeSource={RelativeSource AncestorType=Window}}"
+                                                      SelectedItem="{Binding A.WiimoteButton, UpdateSourceTrigger=PropertyChanged}"/>
+
+                                            <TextBlock Grid.Row="1" Grid.Column="0" Text="B (Boost)" Foreground="{StaticResource SecondaryTextBrush}" Margin="0,0,8,5"/>
+                                            <ComboBox Grid.Row="1" Grid.Column="1" Margin="0,0,0,8"
+                                                      ItemsSource="{Binding DataContext.AvailableWiimoteButtons, RelativeSource={RelativeSource AncestorType=Window}}"
+                                                      SelectedItem="{Binding B.WiimoteButton, UpdateSourceTrigger=PropertyChanged}"/>
+
+                                            <TextBlock Grid.Row="2" Grid.Column="0" Text="LT (Brake/Reverse)" Foreground="{StaticResource SecondaryTextBrush}" Margin="0,0,8,5"/>
+                                            <ComboBox Grid.Row="2" Grid.Column="1" Margin="0,0,0,8"
+                                                      ItemsSource="{Binding DataContext.AvailableWiimoteButtons, RelativeSource={RelativeSource AncestorType=Window}}"
+                                                      SelectedItem="{Binding LeftTrigger.WiimoteButton, UpdateSourceTrigger=PropertyChanged}"/>
+
+                                            <TextBlock Grid.Row="3" Grid.Column="0" Text="RT (Accelerate)" Foreground="{StaticResource SecondaryTextBrush}" Margin="0,0,8,0"/>
+                                            <ComboBox Grid.Row="3" Grid.Column="1"
+                                                      ItemsSource="{Binding DataContext.AvailableWiimoteButtons, RelativeSource={RelativeSource AncestorType=Window}}"
+                                                      SelectedItem="{Binding RightTrigger.WiimoteButton, UpdateSourceTrigger=PropertyChanged}"/>
+                                        </Grid>
+                                    </Border>
+                                     
                                     <!-- Accelerometer -->
-                                    <TextBlock Grid.Row="5" Grid.Column="0" Text="Motion Control" Foreground="{StaticResource SecondaryTextBrush}" Margin="0,0,15,25" VerticalAlignment="Top" Padding="0,5,0,0" FontSize="14"/>
-                                    <StackPanel Grid.Row="5" Grid.Column="1" Margin="0,0,0,25">
+                                    <TextBlock Grid.Row="7" Grid.Column="0" Text="Motion Control" Foreground="{StaticResource SecondaryTextBrush}" Margin="0,0,15,25" VerticalAlignment="Top" Padding="0,5,0,0" FontSize="14"/>
+                                    <StackPanel Grid.Row="7" Grid.Column="1" Margin="0,0,0,25">
                                         <CheckBox IsChecked="{Binding UseAccelerometer}" 
                                                   Content="🏎️ Enable Accelerometer (Tilt Steering for Racing Games)" 
                                                   Foreground="White" FontSize="14" FontWeight="SemiBold" Margin="0,0,0,10"/>
@@ -534,8 +578,8 @@
                                     </StackPanel>
                                     
                                     <!-- Stats -->
-                                    <TextBlock Grid.Row="6" Grid.Column="0" Text="Statistics" Foreground="{StaticResource SecondaryTextBrush}" Margin="0,0,15,0" VerticalAlignment="Top" FontSize="14"/>
-                                    <StackPanel Grid.Row="6" Grid.Column="1" Margin="0,0,0,25">
+                                    <TextBlock Grid.Row="8" Grid.Column="0" Text="Statistics" Foreground="{StaticResource SecondaryTextBrush}" Margin="0,0,15,0" VerticalAlignment="Top" FontSize="14"/>
+                                    <StackPanel Grid.Row="8" Grid.Column="1" Margin="0,0,0,25">
                                         <Border Background="{StaticResource InputBackgroundBrush}" CornerRadius="8" Padding="15" Margin="0,0,0,8">
                                             <TextBlock Foreground="{StaticResource SecondaryTextBrush}" FontSize="13">
                                                 <Run Text="Usage Count:" FontWeight="SemiBold"/>
@@ -561,13 +605,16 @@
                                 <!-- Action Buttons -->
                                 <WrapPanel Margin="0,20,0,0">
                                     <Button Content="💾 Save" Command="{Binding DataContext.SaveCommand, RelativeSource={RelativeSource AncestorType=Window}}" 
-                                            Style="{StaticResource ModernButton}" Background="{StaticResource AccentBrush}"/>
+                                            Style="{StaticResource ModernButton}" Background="{StaticResource AccentBrush}"
+                                            IsEnabled="{Binding DataContext.IsSelectedProfileProtected, RelativeSource={RelativeSource AncestorType=Window}, Converter={StaticResource InverseBoolConverter}}"/>
                                     <Button Content="⭐ Toggle Favorite" Command="{Binding DataContext.ToggleFavoriteCommand, RelativeSource={RelativeSource AncestorType=Window}}" 
-                                            Style="{StaticResource ModernButton}" Background="{StaticResource WarningBrush}"/>
+                                            Style="{StaticResource ModernButton}" Background="{StaticResource WarningBrush}"
+                                            IsEnabled="{Binding DataContext.IsSelectedProfileProtected, RelativeSource={RelativeSource AncestorType=Window}, Converter={StaticResource InverseBoolConverter}}"/>
                                     <Button Content="📋 Duplicate" Command="{Binding DataContext.DuplicateCommand, RelativeSource={RelativeSource AncestorType=Window}}" 
                                             Style="{StaticResource ModernButton}" Background="{StaticResource ButtonBackgroundBrush}"/>
                                     <Button Content="🗑️ Delete" Command="{Binding DataContext.DeleteCommand, RelativeSource={RelativeSource AncestorType=Window}}" 
-                                            Style="{StaticResource ModernButton}" Background="{StaticResource ErrorBrush}"/>
+                                            Style="{StaticResource ModernButton}" Background="{StaticResource ErrorBrush}"
+                                            IsEnabled="{Binding DataContext.IsSelectedProfileProtected, RelativeSource={RelativeSource AncestorType=Window}, Converter={StaticResource InverseBoolConverter}}"/>
                                 </WrapPanel>
                             </StackPanel>
                         </ScrollViewer>
