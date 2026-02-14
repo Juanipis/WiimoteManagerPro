@@ -1,6 +1,6 @@
 # 🎮 Wiimote Manager Pro
 
-![GitHub License](https://img.shields.io/github/license/JuanI/UCHWiiRemoteMod)
+[![License: MIT](https://img.shields.io/badge/License-MIT-green.svg)](LICENSE.md)
 ![Build Status](https://github.com/JuanI/UCHWiiRemoteMod/actions/workflows/ci.yml/badge.svg)
 ![GitHub release (latest by date)](https://img.shields.io/github/v/release/JuanI/UCHWiiRemoteMod)
 ![Platform](https://img.shields.io/badge/platform-Windows-blue)

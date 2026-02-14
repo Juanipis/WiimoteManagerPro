@@ -484,38 +484,34 @@
                                     <!-- Button Mapping -->
                                     <TextBlock Grid.Row="6" Grid.Column="0" Text="Button Mapping" Foreground="{StaticResource SecondaryTextBrush}" Margin="0,0,15,25" VerticalAlignment="Top" Padding="0,8,0,0" FontSize="14"/>
                                     <Border Grid.Row="6" Grid.Column="1" Background="{StaticResource InputBackgroundBrush}" CornerRadius="8" Padding="15" Margin="0,0,0,25">
-                                        <Grid>
-                                            <Grid.ColumnDefinitions>
-                                                <ColumnDefinition Width="*"/>
-                                                <ColumnDefinition Width="*"/>
-                                            </Grid.ColumnDefinitions>
-                                            <Grid.RowDefinitions>
-                                                <RowDefinition Height="Auto"/>
-                                                <RowDefinition Height="Auto"/>
-                                                <RowDefinition Height="Auto"/>
-                                                <RowDefinition Height="Auto"/>
-                                            </Grid.RowDefinitions>
-
-                                            <TextBlock Grid.Row="0" Grid.Column="0" Text="A (Jump/Action)" Foreground="{StaticResource SecondaryTextBrush}" Margin="0,0,8,5"/>
-                                            <ComboBox Grid.Row="0" Grid.Column="1" Margin="0,0,0,8"
+                                        <StackPanel>
+                                            <TextBlock Text="Click an Xbox target, then select which Wiimote button should trigger it." 
+                                                       Foreground="{StaticResource SecondaryTextBrush}" FontSize="12" Margin="0,0,0,10" TextWrapping="Wrap"/>
+                                            <WrapPanel Margin="0,0,0,10">
+                                                <Button Content="A" Command="{Binding DataContext.SelectMappingTargetCommand, RelativeSource={RelativeSource AncestorType=Window}}" CommandParameter="A" Style="{StaticResource ModernButton}" Padding="12,6"/>
+                                                <Button Content="B" Command="{Binding DataContext.SelectMappingTargetCommand, RelativeSource={RelativeSource AncestorType=Window}}" CommandParameter="B" Style="{StaticResource ModernButton}" Padding="12,6"/>
+                                                <Button Content="X" Command="{Binding DataContext.SelectMappingTargetCommand, RelativeSource={RelativeSource AncestorType=Window}}" CommandParameter="X" Style="{StaticResource ModernButton}" Padding="12,6"/>
+                                                <Button Content="Y" Command="{Binding DataContext.SelectMappingTargetCommand, RelativeSource={RelativeSource AncestorType=Window}}" CommandParameter="Y" Style="{StaticResource ModernButton}" Padding="12,6"/>
+                                                <Button Content="LB" Command="{Binding DataContext.SelectMappingTargetCommand, RelativeSource={RelativeSource AncestorType=Window}}" CommandParameter="LB" Style="{StaticResource ModernButton}" Padding="12,6"/>
+                                                <Button Content="RB" Command="{Binding DataContext.SelectMappingTargetCommand, RelativeSource={RelativeSource AncestorType=Window}}" CommandParameter="RB" Style="{StaticResource ModernButton}" Padding="12,6"/>
+                                                <Button Content="LT" Command="{Binding DataContext.SelectMappingTargetCommand, RelativeSource={RelativeSource AncestorType=Window}}" CommandParameter="LT" Style="{StaticResource ModernButton}" Padding="12,6"/>
+                                                <Button Content="RT" Command="{Binding DataContext.SelectMappingTargetCommand, RelativeSource={RelativeSource AncestorType=Window}}" CommandParameter="RT" Style="{StaticResource ModernButton}" Padding="12,6"/>
+                                                <Button Content="Start" Command="{Binding DataContext.SelectMappingTargetCommand, RelativeSource={RelativeSource AncestorType=Window}}" CommandParameter="Start" Style="{StaticResource ModernButton}" Padding="12,6"/>
+                                                <Button Content="Back" Command="{Binding DataContext.SelectMappingTargetCommand, RelativeSource={RelativeSource AncestorType=Window}}" CommandParameter="Back" Style="{StaticResource ModernButton}" Padding="12,6"/>
+                                                <Button Content="Guide" Command="{Binding DataContext.SelectMappingTargetCommand, RelativeSource={RelativeSource AncestorType=Window}}" CommandParameter="Guide" Style="{StaticResource ModernButton}" Padding="12,6"/>
+                                            </WrapPanel>
+                                            <Grid>
+                                                <Grid.ColumnDefinitions>
+                                                    <ColumnDefinition Width="Auto"/>
+                                                    <ColumnDefinition Width="*"/>
+                                                </Grid.ColumnDefinitions>
+                                                <TextBlock Grid.Column="0" Text="Selected target:" Foreground="{StaticResource SecondaryTextBrush}" VerticalAlignment="Center" Margin="0,0,10,0"/>
+                                                <TextBlock Grid.Column="1" Text="{Binding DataContext.SelectedMappingTarget, RelativeSource={RelativeSource AncestorType=Window}}" FontWeight="SemiBold" VerticalAlignment="Center"/>
+                                            </Grid>
+                                            <ComboBox Margin="0,8,0,0"
                                                       ItemsSource="{Binding DataContext.AvailableWiimoteButtons, RelativeSource={RelativeSource AncestorType=Window}}"
-                                                      SelectedItem="{Binding A.WiimoteButton, UpdateSourceTrigger=PropertyChanged}"/>
-
-                                            <TextBlock Grid.Row="1" Grid.Column="0" Text="B (Boost)" Foreground="{StaticResource SecondaryTextBrush}" Margin="0,0,8,5"/>
-                                            <ComboBox Grid.Row="1" Grid.Column="1" Margin="0,0,0,8"
-                                                      ItemsSource="{Binding DataContext.AvailableWiimoteButtons, RelativeSource={RelativeSource AncestorType=Window}}"
-                                                      SelectedItem="{Binding B.WiimoteButton, UpdateSourceTrigger=PropertyChanged}"/>
-
-                                            <TextBlock Grid.Row="2" Grid.Column="0" Text="LT (Brake/Reverse)" Foreground="{StaticResource SecondaryTextBrush}" Margin="0,0,8,5"/>
-                                            <ComboBox Grid.Row="2" Grid.Column="1" Margin="0,0,0,8"
-                                                      ItemsSource="{Binding DataContext.AvailableWiimoteButtons, RelativeSource={RelativeSource AncestorType=Window}}"
-                                                      SelectedItem="{Binding LeftTrigger.WiimoteButton, UpdateSourceTrigger=PropertyChanged}"/>
-
-                                            <TextBlock Grid.Row="3" Grid.Column="0" Text="RT (Accelerate)" Foreground="{StaticResource SecondaryTextBrush}" Margin="0,0,8,0"/>
-                                            <ComboBox Grid.Row="3" Grid.Column="1"
-                                                      ItemsSource="{Binding DataContext.AvailableWiimoteButtons, RelativeSource={RelativeSource AncestorType=Window}}"
-                                                      SelectedItem="{Binding RightTrigger.WiimoteButton, UpdateSourceTrigger=PropertyChanged}"/>
-                                        </Grid>
+                                                      SelectedItem="{Binding DataContext.SelectedWiimoteButton, RelativeSource={RelativeSource AncestorType=Window}, UpdateSourceTrigger=PropertyChanged}"/>
+                                        </StackPanel>
                                     </Border>
                                      
                                     <!-- Accelerometer -->
@@ -624,7 +620,7 @@
                 <!-- Bottom Action Bar -->
                 <Border Grid.Row="2" Style="{StaticResource Card}" Margin="0,20,0,0">
                     <WrapPanel HorizontalAlignment="Center">
-                        <Button Content="➕ New Profile" Command="{Binding CreateNewCommand}" Style="{StaticResource ModernButton}"/>
+                        <Button Content="➕ New Profile" Command="{Binding CreateNewCommand}" Style="{StaticResource ModernButton}" ToolTip="Create a custom profile, then map buttons in the right panel."/>
                         <Button Content="📥 Import" Command="{Binding ImportCommand}" Style="{StaticResource ModernButton}" Background="{StaticResource ButtonBackgroundBrush}"/>
                         <Button Content="📤 Export" Command="{Binding ExportCommand}" Style="{StaticResource ModernButton}" Background="{StaticResource ButtonBackgroundBrush}"/>
                         <Button Content="📁 Open Folder" Command="{Binding OpenProfileFolderCommand}" Style="{StaticResource ModernButton}" Background="{StaticResource ButtonBackgroundBrush}"/>

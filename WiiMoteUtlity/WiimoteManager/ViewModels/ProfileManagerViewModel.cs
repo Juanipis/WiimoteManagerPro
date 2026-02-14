@@ -38,15 +38,26 @@ public partial class ProfileManagerViewModel : ObservableObject
 
     [ObservableProperty]
     private bool _isSelectedProfileProtected = false;
+
+    [ObservableProperty]
+    private string _selectedMappingTarget = "A";
+
+    [ObservableProperty]
+    private ButtonState? _selectedWiimoteButton = ButtonState.None;
     
     public ObservableCollection<ProfileTemplate> AvailableTemplates { get; }
     public ObservableCollection<ButtonState> AvailableWiimoteButtons { get; }
+    public ObservableCollection<string> MappableTargets { get; }
     
     public ProfileManagerViewModel(ProfileService profileService)
     {
         _profileService = profileService;
         AvailableTemplates = new ObservableCollection<ProfileTemplate>(ProfileTemplates.GetAllTemplates());
         AvailableWiimoteButtons = new ObservableCollection<ButtonState>(Enum.GetValues<ButtonState>());
+        MappableTargets = new ObservableCollection<string>(new[]
+        {
+            "A", "B", "X", "Y", "LB", "RB", "LT", "RT", "Start", "Back", "Guide", "DPad Up", "DPad Down", "DPad Left", "DPad Right"
+        });
         RefreshProfiles();
     }
     
@@ -68,6 +79,54 @@ public partial class ProfileManagerViewModel : ObservableObject
     partial void OnSelectedProfileChanged(MappingProfile? value)
     {
         IsSelectedProfileProtected = value != null && ProtectedProfileNames.Contains(value.Name);
+        SyncSelectedMappingFromProfile();
+    }
+
+    partial void OnSelectedMappingTargetChanged(string value)
+    {
+        SyncSelectedMappingFromProfile();
+    }
+
+    partial void OnSelectedWiimoteButtonChanged(ButtonState? value)
+    {
+        if (SelectedProfile == null || IsSelectedProfileProtected) return;
+        var mapping = GetTargetMapping(SelectedProfile, SelectedMappingTarget);
+        if (mapping == null) return;
+        mapping.WiimoteButton = value == ButtonState.None ? null : value;
+    }
+
+    private void SyncSelectedMappingFromProfile()
+    {
+        if (SelectedProfile == null) return;
+        var mapping = GetTargetMapping(SelectedProfile, SelectedMappingTarget);
+        SelectedWiimoteButton = mapping?.WiimoteButton ?? ButtonState.None;
+    }
+
+    private static ControlMapping? GetTargetMapping(MappingProfile profile, string target) => target switch
+    {
+        "A" => profile.A,
+        "B" => profile.B,
+        "X" => profile.X,
+        "Y" => profile.Y,
+        "LB" => profile.LeftShoulder,
+        "RB" => profile.RightShoulder,
+        "LT" => profile.LeftTrigger,
+        "RT" => profile.RightTrigger,
+        "Start" => profile.Start,
+        "Back" => profile.Back,
+        "Guide" => profile.Guide,
+        "DPad Up" => profile.DPadUp,
+        "DPad Down" => profile.DPadDown,
+        "DPad Left" => profile.DPadLeft,
+        "DPad Right" => profile.DPadRight,
+        _ => null
+    };
+
+    [RelayCommand]
+    public void SelectMappingTarget(string target)
+    {
+        if (string.IsNullOrWhiteSpace(target)) return;
+        SelectedMappingTarget = target;
     }
     
     [RelayCommand]

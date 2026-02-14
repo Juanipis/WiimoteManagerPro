@@ -42,7 +42,14 @@ public class ProfileService
                 Tags = new List<string> { "Default", "Classic" },
                 Author = "System"
             };
-            SaveProfile(defaultProfile);
+            try
+            {
+                SaveProfile(defaultProfile);
+            }
+            catch (IOException)
+            {
+                // Another process/test may create the profile at the same time.
+            }
         }
     }
 
