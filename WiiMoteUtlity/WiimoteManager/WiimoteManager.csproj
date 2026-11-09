@@ -1,0 +1,29 @@
+﻿<Project Sdk="Microsoft.NET.Sdk">
+
+  <PropertyGroup>
+    <OutputType>WinExe</OutputType>
+    <TargetFramework>net8.0-windows10.0.19041.0</TargetFramework>
+    <TargetPlatformMinVersion>10.0.17763.0</TargetPlatformMinVersion>
+    <Nullable>enable</Nullable>
+    <ImplicitUsings>enable</ImplicitUsings>
+    <UseWPF>true</UseWPF>
+    
+    <!-- Package Information -->
+    <Version>1.1.0-rc1</Version>
+    <Authors>JuanI</Authors>
+    <Company>UCHWiiRemoteMod</Company>
+    <Product>Wiimote Manager Pro</Product>
+    <Description>Professional Nintendo Wiimote management tool with Xbox 360 emulation.</Description>
+    <Copyright>Copyright © 2026</Copyright>
+    
+    <!-- Application Icon -->
+    <!-- <ApplicationIcon>app.ico</ApplicationIcon> -->
+  </PropertyGroup>
+
+  <ItemGroup>
+    <PackageReference Include="CommunityToolkit.Mvvm" Version="8.2.2" />
+    <PackageReference Include="HidSharp" Version="2.6.2" />
+    <PackageReference Include="Nefarius.ViGEm.Client" Version="1.21.256" />
+  </ItemGroup>
+
+</Project>
